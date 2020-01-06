@@ -8,6 +8,9 @@ SITEURL = ''
 
 PATH = 'content'
 
+# THEME = '/home/latty/Prog/__BLOG__/blog_source/pelican-themes/blueidea'
+THEME = 'blueidea'
+
 TIMEZONE = 'Europe/Paris'
 
 DEFAULT_LANG = 'fr'
