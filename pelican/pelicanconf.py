@@ -38,3 +38,7 @@ DEFAULT_PAGINATION = 10
 
 # Comments
 DISQUS_SITENAME = "yoyonel"
+
+# Plugings
+PLUGIN_PATHS = ["../pelican-plugins"]
+PLUGINS = ['pelican-js', 'pelican-css']
