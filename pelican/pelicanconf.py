@@ -8,7 +8,7 @@ SITEURL = ''
 
 PATH = 'content'
 
-THEME = 'blueidea'
+THEME = 'blueidea-custom'
 
 TIMEZONE = 'Europe/Paris'
 
@@ -42,3 +42,8 @@ DISQUS_SITENAME = "yoyonel"
 # Plugings
 PLUGIN_PATHS = ["../pelican-plugins"]
 PLUGINS = ['pelican-js', 'pelican-css']
+
+# Theme settings
+DISPLAY_AUTHOR_ON_POSTINFO = True
+DISPLAY_CATEGORIES_ON_POSTINFO = True
+DISPLAY_CATEGORIES_ON_SUBMENU = False
