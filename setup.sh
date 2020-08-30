@@ -8,7 +8,7 @@ if [[ ! -d .git ]]; then
 fi
 
 
-git flow init -d
+git flow init -d -f
 
 
 if [[ ! -d pelican-plugins ]]; then
