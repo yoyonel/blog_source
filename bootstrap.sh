@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PELICAN_PORT=${PELICAN_PORT:-8081}
+
 # (git) repos dependencies
 ./setup.sh
 
@@ -15,6 +17,6 @@ poetry run pelican-themes -vi pelican-themes/blueidea-custom
 pushd pelican
 
 # launch local dev server
-x-www-browser 127.0.0.1:8081 && PORT=8081 poetry run make devserver
+x-www-browser 127.0.0.1:"$PELICAN_PORT" && PORT="$PELICAN_PORT" poetry run make devserver
 
 popd
