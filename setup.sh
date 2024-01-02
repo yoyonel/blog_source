@@ -8,6 +8,12 @@ if [[ ! -d .git ]]; then
 fi
 
 
+# $ git flow init --help
+# usage: git flow init [-h] [-d] [-f]
+# 
+#     Setup a git repository for git flow usage. Can also be used to start a git repository.
+#    -d, --[no]defaults    Use default branch naming conventions
+#    -f, --[no]force       Force setting of gitflow branches, even if already configured
 git flow init -d -f
 
 
