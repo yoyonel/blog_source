@@ -1,0 +1,117 @@
+/* Mermaid diagram overrides for dark-theme blogs */
+
+/* Container — scrollable, diagrams render at natural size */
+pre.mermaid {
+  background: #1a1a2e !important;
+  border: 1px solid #4a90d9 !important;
+  border-radius: 8px;
+  padding: 1em !important;
+  overflow-x: auto;
+  overflow-y: visible;
+  text-align: center;
+}
+
+/* SVG keeps its intrinsic size — container scrolls if wider than article */
+pre.mermaid svg {
+  max-width: none;
+  height: auto;
+  display: inline-block;
+}
+
+/* Dark mode overrides — force readable text in all diagram types */
+@media (prefers-color-scheme: dark) {
+  /* Node text */
+  .mermaid .nodeLabel,
+  .mermaid .label,
+  .mermaid .edgeLabel,
+  .mermaid .cluster-label,
+  .mermaid text,
+  .mermaid .taskText,
+  .mermaid .sectionTitle,
+  .mermaid .titleText,
+  .mermaid tspan {
+    fill: #e0e0e0 !important;
+    color: #e0e0e0 !important;
+  }
+
+  /* Node backgrounds */
+  .mermaid .node rect,
+  .mermaid .node circle,
+  .mermaid .node polygon {
+    fill: #2d5986 !important;
+    stroke: #4a90d9 !important;
+  }
+
+  /* Cluster (subgraph) backgrounds */
+  .mermaid .cluster rect {
+    fill: #1e3a5f !important;
+    stroke: #4a90d9 !important;
+  }
+
+  /* Edge labels background */
+  .mermaid .edgeLabel rect {
+    fill: #1a1a2e !important;
+    opacity: 0.9;
+  }
+
+  /* Lines / arrows */
+  .mermaid .edgePath .path,
+  .mermaid .flowchart-link {
+    stroke: #7eb8da !important;
+  }
+  .mermaid marker path {
+    fill: #7eb8da !important;
+  }
+
+  /* Sequence diagram */
+  .mermaid .actor {
+    fill: #2d5986 !important;
+    stroke: #4a90d9 !important;
+  }
+  .mermaid .actor-line {
+    stroke: #5a9fd4 !important;
+  }
+  .mermaid .messageLine0,
+  .mermaid .messageLine1 {
+    stroke: #7eb8da !important;
+  }
+  .mermaid .messageText {
+    fill: #e0e0e0 !important;
+  }
+  .mermaid .note {
+    fill: #3d3d1a !important;
+    stroke: #8b8b3d !important;
+  }
+  .mermaid .noteText {
+    fill: #e0e0e0 !important;
+  }
+
+  /* State diagram */
+  .mermaid .state-note-edge-label,
+  .mermaid .statediagram-state .label {
+    fill: #e0e0e0 !important;
+  }
+  .mermaid .statediagram-cluster rect {
+    fill: #1e3a5f !important;
+    stroke: #4a90d9 !important;
+  }
+
+  /* Gantt chart */
+  .mermaid .section {
+    fill: #1e3a5f !important;
+  }
+  .mermaid .task {
+    fill: #2d5986 !important;
+    stroke: #4a90d9 !important;
+  }
+  .mermaid .taskTextOutsideRight,
+  .mermaid .taskTextOutsideLeft {
+    fill: #e0e0e0 !important;
+  }
+  .mermaid .grid .tick line {
+    stroke: #444 !important;
+  }
+  .mermaid .grid .tick text {
+    fill: #aaa !important;
+  }
+}
