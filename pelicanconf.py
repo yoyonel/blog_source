@@ -5,6 +5,7 @@ SITEURL = ""
 PATH = "content"
 
 THEME = "themes/Flex"
+THEME_TEMPLATES_OVERRIDES = ["templates"]
 
 TIMEZONE = "Europe/Paris"
 DEFAULT_LANG = "fr"
