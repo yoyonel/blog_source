@@ -29,7 +29,7 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           repository-name: yoyonel/yoyonel.github.io
-          branch: main
+          branch: master
           folder: output
           # Create a deploy key (ssh-keygen -t ed25519) and add:
           # - Public key as Deploy Key (with write access) on yoyonel.github.io repo
