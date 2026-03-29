@@ -117,3 +117,9 @@ CSS: mon-style.css
 JS: mon-script.js (top)
 ---
 ```
+
+## ⚠️ Points d'attention
+
+- **Google Analytics** : le tracking ID `UA-155727660-1` configuré dans `publishconf.py` est Universal Analytics (sunset juillet 2024). Pour conserver les analytics, le remplacer par un Measurement ID GA4 (`G-XXXXXXXXXX`).
+- **Thème Flex** : le thème est un git submodule. Après un `git clone`, penser à `git submodule update --init --recursive` (ou utiliser `just setup` qui le fait automatiquement).
+- **Disqus** : les commentaires utilisent le sitename `yoyonel`. Vérifier que le site est toujours actif sur [disqus.com/admin](https://disqus.com/admin/).
