@@ -1,0 +1,25 @@
+{% if MAIN_MENU %}
+<nav>
+  <a href="{{ SITEURL }}/">{{ _('Home') }}</a>
+
+  {% for title, link in MENUITEMS %}
+  <a href="{{ link }}">{{ _(title) }}</a>
+  {% endfor %}
+
+  {% if FEED_ALL_ATOM %}
+  <a href="{{ FEED_DOMAIN }}/{{ FEED_ALL_ATOM }}">{{ _('Atom') }}</a>
+  {% endif %}
+
+  {% if FEED_ALL_RSS %}
+  <a href="{{ FEED_DOMAIN }}/{{ FEED_ALL_RSS }}">{{ _('RSS') }}</a>
+  {% endif %}
+
+  {% if lang_siteurls %}
+  <span class="lang-switcher" style="margin-left: auto;">
+    {% for lang_code, lang_siteurl in lang_siteurls.items()|sort %}
+    <a href="{{ lang_siteurl }}/"{% if lang_code == DEFAULT_LANG %} class="active"{% endif %}>{{ lang_code|upper }}</a>
+    {% endfor %}
+  </span>
+  {% endif %}
+</nav>
+{% endif %}
