@@ -38,7 +38,7 @@ just dev        # Serveur local avec live-reload → http://localhost:8000
 ├── plugins/             # Plugins Pelican locaux
 │   └── css_js_injector.py
 ├── themes/
-│   └── blueidea-custom/ # Thème (git submodule)
+│   └── Flex/            # Thème (git submodule)
 ├── Justfile             # Point d'entrée unique
 ├── pelicanconf.py       # Configuration développement
 ├── publishconf.py       # Configuration production
@@ -47,9 +47,24 @@ just dev        # Serveur local avec live-reload → http://localhost:8000
 
 ## CI/CD
 
-Le workflow GitHub Actions (`.github/workflows/deploy.yml`) déploie automatiquement sur push vers `master`/`main`.
+Deux workflows GitHub Actions :
 
-### Configuration du deploy key (une seule fois)
+| Workflow | Trigger | Rôle |
+|---|---|---|
+| `deploy.yml` | Push sur `master`/`main` | Build + déploie sur GitHub Pages |
+| `preview.yml` | Pull Request | Build + déploie une preview sur surge.sh |
+
+### Secrets GitHub requis
+
+À configurer dans **Settings → Secrets and variables → Actions** du repo `blog_source` :
+
+| Secret | Usage | Comment l'obtenir |
+|---|---|---|
+| `DEPLOY_KEY` | Déploiement GitHub Pages | Voir section ci-dessous |
+| `SURGE_LOGIN` | Preview PR (surge.sh) | Email du compte surge |
+| `SURGE_TOKEN` | Preview PR (surge.sh) | `surge token` |
+
+### Configuration du deploy key (GitHub Pages)
 
 ```bash
 # Générer une clé SSH dédiée
@@ -59,8 +74,26 @@ ssh-keygen -t ed25519 -C "blog-deploy" -f blog_deploy_key -N ""
 #   Settings → Deploy keys → Add deploy key (coller la clé publique, cocher "Allow write access")
 
 # Sur le repo blog_source :
-#   Settings → Secrets → New repository secret → nom: DEPLOY_KEY (coller la clé privée)
+gh secret set DEPLOY_KEY < blog_deploy_key
 ```
+
+### Configuration surge.sh (preview de PR)
+
+```bash
+# Installer surge et créer un compte
+npm install -g surge
+surge login
+
+# Récupérer le token
+surge token
+
+# Enregistrer les secrets dans le repo
+gh secret set SURGE_LOGIN -b "ton-email@example.com"
+gh secret set SURGE_TOKEN -b "<token affiché par surge token>"
+```
+
+Une fois configuré, chaque PR recevra automatiquement un commentaire avec l'URL de preview :
+`https://blog-source-pr-<N>.surge.sh`
 
 ## Écrire un article
 
