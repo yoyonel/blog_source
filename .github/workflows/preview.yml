@@ -33,7 +33,14 @@ jobs:
         run: npm install -g surge
 
       - name: Deploy to surge.sh
-        run: surge output blog-source-pr-${{ github.event.pull_request.number }}.surge.sh
+        run: |
+          if [[ -z "$SURGE_LOGIN" || -z "$SURGE_TOKEN" ]]; then
+            echo "::error::SURGE_LOGIN and SURGE_TOKEN secrets are not configured."
+            echo "Run: npm install -g surge && surge login && surge token"
+            echo "Then add SURGE_LOGIN (email) and SURGE_TOKEN as repository secrets."
+            exit 1
+          fi
+          surge output blog-source-pr-${{ github.event.pull_request.number }}.surge.sh
         env:
           SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }}
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
