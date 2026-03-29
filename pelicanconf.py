@@ -9,6 +9,10 @@ THEME = "themes/Flex"
 TIMEZONE = "Europe/Paris"
 DEFAULT_LANG = "fr"
 
+# i18n
+I18N_UNTRANSLATED_ARTICLES = "keep"
+I18N_UNTRANSLATED_PAGES = "keep"
+
 # Feeds (disabled in dev)
 FEED_ALL_ATOM = None
 CATEGORY_FEED_ATOM = None

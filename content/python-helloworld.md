@@ -1,5 +1,7 @@
 ---
 title: "Hello World" en Python
+slug: python-helloworld
+lang: fr
 date: 2020-01-06
 description: Exemple Python pour afficher "Hello World!"
 tags: Python

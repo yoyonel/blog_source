@@ -1,10 +1,11 @@
 ---
 title: Plan - Posts dans le future - Hobbies
+slug: plan-future-posts-hobbies
+lang: fr
 date: 2020-01-06T16:25:13.948Z
 description: Plan (non exhaustif) des thèmes, futurs posts possibles pour les hobbies
 tags: Blog, Futur, Plan, Hobbies
 category: Hobbies
-
 ---
 
 # Hoobies -> Plan: Futurs posts, thèmes, sujets à aborder

@@ -1,10 +1,11 @@
 ---
 title: Plan - Posts dans le future - Développement
+slug: plan-future-posts-developpement
+lang: fr
 date: 2020-01-06T16:25:13.948Z
 description: Plan (non exhaustif) des thèmes, futurs posts possibles en développement
 tags: Blog, Futur, Plan, Développement
 category: Développement
-
 ---
 
 # Développement -> Plan: Futur posts, thèmes, sujets à aborder

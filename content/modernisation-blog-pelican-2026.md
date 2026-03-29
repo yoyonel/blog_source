@@ -1,5 +1,7 @@
 ---
 title: Moderniser un blog Pelican en 2026 — Architecture, Stack & CI/CD
+slug: modernisation-blog-pelican-2026
+lang: fr
 date: 2026-03-29
 description: Retour d'expérience sur la modernisation complète d'un blog technique Pelican — de la gestion des dépendances au déploiement automatisé sur GitHub Pages.
 tags: Pelican, Python, GitHub Actions, CI/CD, uv, Justfile, Blog

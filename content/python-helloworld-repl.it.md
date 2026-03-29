@@ -1,5 +1,7 @@
 ---
 title: "Hello World" en Python - Repl.it
+slug: python-helloworld-replit
+lang: fr
 date: 2020-01-08
 description: Exemple Python pour afficher "Hello World!" + Interpréteur Repl.it
 tags: Python, Repl.it

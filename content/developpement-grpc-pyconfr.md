@@ -1,10 +1,11 @@
 ---
 title: PyConFR 2019 (Bordeaux) - gRPC/Python - Exemple pratique d'utilisation de micro-services pour une (mini) application d'analyse sémantiques de textes (NLP).
+slug: pyconfr-2019-grpc-python
+lang: fr
 date: 2020-01-07T10:23:16.221Z
 description: Présentation à la PyConFR 2019 (Bordeau) d'un talk sur une présentation d'utilisation de micro-services via gRPC en Python pour une application "petite" échelle (Twitter, NLP, Database).
 tags: Python, PyConFr, gRPC, Twitter, NLP, Présentation, Intermédiaire
 category: Développement
-
 ---
 
 # Présentation: PyConFR 2019 (Bordeaux) - gRPC/Python
