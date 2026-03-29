@@ -1,7 +1,23 @@
-HOWTO
-deploy
-pelican-plugins
-pelican-themes
-*.pid
-pelican/output
+# Generated
+output/
 *.pyc
+__pycache__/
+*.pid
+
+# Dependencies (uv)
+.venv/
+uv.lock
+
+# Legacy (to remove after cleanup)
+HOWTO
+deploy/
+pelican-plugins/
+pelican-themes/
+pelican/output/
+
+# Secrets / SSH keys
+*.pem
+blog_deploy_key*
+
+# OS
+.DS_Store

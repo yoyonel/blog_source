@@ -1,0 +1,62 @@
+AUTHOR = "YoYoNeL"
+SITENAME = "Bloggy le Blog"
+SITEURL = ""
+
+PATH = "content"
+
+THEME = "themes/Flex"
+
+TIMEZONE = "Europe/Paris"
+DEFAULT_LANG = "fr"
+
+# Feeds (disabled in dev)
+FEED_ALL_ATOM = None
+CATEGORY_FEED_ATOM = None
+TRANSLATION_FEED_ATOM = None
+AUTHOR_FEED_ATOM = None
+AUTHOR_FEED_RSS = None
+
+# Blogroll
+LINKS = (
+    ("Pelican", "https://getpelican.com/"),
+    ("Python.org", "https://python.org/"),
+)
+
+# Social
+SOCIAL = (
+    ("github", "https://github.com/yoyonel"),
+)
+
+DEFAULT_PAGINATION = 10
+
+# Comments
+DISQUS_SITENAME = "yoyonel"
+
+# Plugins
+PLUGIN_PATHS = ["plugins"]
+PLUGINS = ["css_js_injector"]
+
+# Static files
+STATIC_PATHS = ["css", "js", "python", "images"]
+ARTICLE_EXCLUDES = ["css", "js", "python", "images"]
+
+# --- Flex theme settings ---
+SITETITLE = "Bloggy le Blog"
+SITESUBTITLE = "💻🎸🎞️ Dev, musique & bidouilles 🎦🎼🖥️"
+SITEDESCRIPTION = "Blog technique de YoYoNeL"
+
+# Dark mode auto-detect (follows OS preference)
+THEME_COLOR_AUTO_DETECT_BROWSER_PREFERENCE = True
+THEME_COLOR_ENABLE_USER_OVERRIDE = True
+
+# Code highlighting
+PYGMENTS_STYLE = "github"
+PYGMENTS_STYLE_DARK = "monokai"
+
+# Navbar
+MAIN_MENU = True
+MENUITEMS = (
+    ("Archives", "/archives.html"),
+    ("Catégories", "/categories.html"),
+    ("Tags", "/tags.html"),
+)

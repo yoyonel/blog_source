@@ -1,0 +1,79 @@
+name: PR Preview (surge.sh)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build site
+        run: |
+          uv run pelican content -o output -s publishconf.py
+        env:
+          # Override SITEURL for the surge preview domain
+          PELICAN_SITEURL: "https://blog-source-pr-${{ github.event.pull_request.number }}.surge.sh"
+
+      - name: Install surge
+        run: npm install -g surge
+
+      - name: Deploy to surge.sh
+        run: |
+          if [[ -z "$SURGE_LOGIN" || -z "$SURGE_TOKEN" ]]; then
+            echo "::error::SURGE_LOGIN and SURGE_TOKEN secrets are not configured."
+            echo "Run: npm install -g surge && surge login && surge token"
+            echo "Then add SURGE_LOGIN (email) and SURGE_TOKEN as repository secrets."
+            exit 1
+          fi
+          surge output blog-source-pr-${{ github.event.pull_request.number }}.surge.sh
+        env:
+          SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }}
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = `https://blog-source-pr-${{ github.event.pull_request.number }}.surge.sh`;
+            const body = `🚀 **Preview deployed!**\n\n${url}\n\n_Updated at ${new Date().toISOString()}_`;
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Preview deployed')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
