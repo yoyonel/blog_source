@@ -15,5 +15,9 @@ pelican-plugins/
 pelican-themes/
 pelican/output/
 
+# Secrets / SSH keys
+*.pem
+blog_deploy_key*
+
 # OS
 .DS_Store

@@ -67,14 +67,17 @@ Deux workflows GitHub Actions :
 ### Configuration du deploy key (GitHub Pages)
 
 ```bash
-# Générer une clé SSH dédiée
-ssh-keygen -t ed25519 -C "blog-deploy" -f blog_deploy_key -N ""
+# Générer une clé SSH dédiée (dans /tmp pour ne pas polluer le repo)
+ssh-keygen -t ed25519 -C "blog-deploy" -f /tmp/blog_deploy_key -N ""
 
-# Sur le repo yoyonel.github.io :
-#   Settings → Deploy keys → Add deploy key (coller la clé publique, cocher "Allow write access")
+# Ajouter la clé publique comme Deploy Key (write access) sur yoyonel.github.io
+gh repo deploy-key add /tmp/blog_deploy_key.pub -R yoyonel/yoyonel.github.io -w -t "blog-source-deploy"
 
-# Sur le repo blog_source :
-gh secret set DEPLOY_KEY < blog_deploy_key
+# Ajouter la clé privée comme secret sur blog_source
+gh secret set DEPLOY_KEY < /tmp/blog_deploy_key
+
+# Supprimer les fichiers clé
+rm /tmp/blog_deploy_key /tmp/blog_deploy_key.pub
 ```
 
 ### Configuration surge.sh (preview de PR)
