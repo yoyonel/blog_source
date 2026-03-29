@@ -38,7 +38,26 @@ DISQUS_SITENAME = "yoyonel"
 
 # Plugins
 PLUGIN_PATHS = ["plugins"]
-PLUGINS = ["css_js_injector"]
+PLUGINS = ["css_js_injector", "i18n_subsites"]
+
+# i18n subsites
+JINJA_ENVIRONMENT = {
+    "extensions": ["jinja2.ext.i18n"],
+}
+
+I18N_SUBSITES = {
+    "en": {
+        "SITENAME": "Bloggy le Blog",
+        "SITETITLE": "Bloggy le Blog",
+        "SITESUBTITLE": "💻🎸🎞️ Dev, music & tinkering 🎦🎼🖥️",
+        "SITEDESCRIPTION": "YoYoNeL's technical blog",
+        "MENUITEMS": (
+            ("Archives", "/en/archives.html"),
+            ("Categories", "/en/categories.html"),
+            ("Tags", "/en/tags.html"),
+        ),
+    },
+}
 
 # Static files
 STATIC_PATHS = ["css", "js", "python", "images"]
