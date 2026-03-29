@@ -44,6 +44,7 @@ ARTICLE_EXCLUDES = ["css", "js", "python", "images"]
 SITETITLE = "Bloggy le Blog"
 SITESUBTITLE = "💻🎸🎞️ Dev, musique & bidouilles 🎦🎼🖥️"
 SITEDESCRIPTION = "Blog technique de YoYoNeL"
+SITELOGO = "/images/avatar.gif"
 
 # Dark mode auto-detect (follows OS preference)
 THEME_COLOR_AUTO_DETECT_BROWSER_PREFERENCE = True
