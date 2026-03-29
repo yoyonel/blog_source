@@ -12,18 +12,18 @@ JS: mermaid-init.js (top)
 
 # Anatomie d'une frame : le cycle de vie complet de suckless-ogl
 
-*De `main()` aux photons sur l'écran — une plongée complète dans un moteur [PBR](#glossary-pbr) OpenGL moderne écrit en C.*
+*De `main()` aux photons sur l'écran — une plongée complète dans un moteur [PBR](#glossary-pbr "Physically-Based Rendering — modèle d'éclairage qui simule la physique réelle de la lumière") OpenGL moderne écrit en C.*
 
 ![Le rendu final de suckless-ogl — 100 sphères PBR éclairées par IBL]({static}/images/suckless-ogl/reference_image.png)
-*<center>Le rendu final : 100 sphères métalliques et diélectriques, éclairées par une [HDR](#glossary-hdr) d'environnement, avec post-processing complet.</center>*
+*<center>Le rendu final : 100 sphères métalliques et diélectriques, éclairées par une [HDR](#glossary-hdr "High Dynamic Range — valeurs de couleur supérieures à 1.0 (lumière réaliste)") d'environnement, avec post-processing complet.</center>*
 
 ---
 
 ## Introduction
 
-[**suckless-ogl**](https://github.com/yoyonel/suckless-ogl) est un moteur de rendu [PBR](#glossary-pbr) (Physically-Based Rendering) minimaliste et performant, écrit en **C11** avec **OpenGL 4.4 Core Profile**. Il affiche une grille de **100 sphères** aux matériaux variés (métaux, diélectriques, peintures, organiques…) éclairées par **Image-Based Lighting** ([IBL](#glossary-ibl)), avec un pipeline de post-processing complet : [bloom](#glossary-bloom), depth of field, [motion blur](#glossary-motion-blur), [FXAA](#glossary-fxaa), tone mapping, [color grading](#glossary-color-grading)…
+[**suckless-ogl**](https://github.com/yoyonel/suckless-ogl) est un moteur de rendu [PBR](#glossary-pbr "Physically-Based Rendering — modèle d'éclairage qui simule la physique réelle de la lumière") (Physically-Based Rendering) minimaliste et performant, écrit en **C11** avec **OpenGL 4.4 Core Profile**. Il affiche une grille de **100 sphères** aux matériaux variés (métaux, diélectriques, peintures, organiques…) éclairées par **Image-Based Lighting** ([IBL](#glossary-ibl "Image-Based Lighting — éclairage extrait d'une image panoramique HDR de l'environnement")), avec un pipeline de post-processing complet : [bloom](#glossary-bloom "Effet de halo lumineux autour des zones très brillantes (diffusion lumineuse de l'objectif)"), [depth of field](#glossary-depth-of-field-dof "Profondeur de champ — flou des objets hors de la distance de mise au point"), [motion blur](#glossary-motion-blur "Flou de mouvement par pixel simulant l'obturateur d'une caméra"), [FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — anti-crénelage rapide en post-process sur l'image finale"), [tone mapping](#glossary-tonemapping "Conversion des couleurs HDR (illimitées) en LDR affichable (0–255)"), [color grading](#glossary-color-grading "Ajustement créatif des couleurs (saturation, contraste, gamma, teinte)")…
 
-Cet article retrace le **cycle de vie complet** de l'application : depuis le premier octet alloué dans `main()` jusqu'au moment où le GPU présente la première frame complètement éclairée à l'écran. On va traverser **chaque couche** — mémoire CPU, ressources GPU, la poignée de main X11/GLFW, la création du contexte OpenGL, la compilation des shaders, le [chargement asynchrone](#glossary-chargement-asynchrone) de textures, et l'architecture de rendu multi-pass qui produit chaque frame.
+Cet article retrace le **cycle de vie complet** de l'application : depuis le premier octet alloué dans `main()` jusqu'au moment où le GPU présente la première frame complètement éclairée à l'écran. On va traverser **chaque couche** — mémoire CPU, ressources GPU, la poignée de main X11/GLFW, la création du contexte OpenGL, la compilation des shaders, le [chargement asynchrone](#glossary-chargement-asynchrone "Exécuter les I/O disque sur un thread séparé pour ne pas bloquer le rendu") de textures, et l'architecture de rendu multi-pass qui produit chaque frame.
 
 ### Ce qu'on va couvrir
 
@@ -81,10 +81,10 @@ Le design est **volontairement simple** — toute la complexité est encapsulée
 
 | Décision | Pourquoi ? |
 |----------|-----------|
-| **Allocation alignée SIMD** | La structure `App` contient des `mat4`/`vec3` (via *cglm*) qui bénéficient de l'alignement 16 octets pour la vectorisation SSE/NEON |
-| **Zero-init** `{0}` | État déterministe — chaque pointeur commence à `NULL`, chaque flag à `0` |
-| **Tracy en premier** | Le profiler doit être initialisé avant tout autre sous-système pour capturer la timeline complète |
-| **Un seul `App` struct** | Tout l'état applicatif vit dans une allocation contiguë — cache-friendly, facile à passer |
+| **Allocation alignée [SIMD](#glossary-simd "Single Instruction, Multiple Data — calcul vectoriel (1 instruction traite 4+ valeurs)")** | La structure `App` contient des `mat4`/`vec3` (via *[cglm](#glossary-cglm "Bibliothèque C de maths 3D optimisée SIMD (matrices, vecteurs, quaternions)")*) qui bénéficient de l'alignement 16 octets pour la vectorisation [SSE](#glossary-sse "Extensions SIMD d'Intel/AMD pour le x86 (registres 128-bit)")/[NEON](#glossary-neon "Extensions SIMD d'ARM (smartphones, Apple Silicon, Raspberry Pi)") |
+| **[Zero-init](#glossary-zero-init "Initialisation à zéro d'une structure C via {0} — garantit un état déterministe au démarrage")** `{0}` | État déterministe — chaque pointeur commence à `NULL`, chaque flag à `0` |
+| **[Tracy](#glossary-tracy "Profiler temps réel pour jeux et applis graphiques (mesure CPU + GPU par frame)") en premier** | Le profiler doit être initialisé avant tout autre sous-système pour capturer la timeline complète |
+| **Un seul `App` struct** | Tout l'état applicatif vit dans une allocation contiguë — [cache-friendly](#glossary-cache-friendly "Organisation mémoire qui minimise les cache-miss CPU (données contiguës)"), facile à passer |
 
 <pre class="mermaid">
 graph TD
@@ -107,11 +107,11 @@ graph TD
 
 ---
 
-## Chapitre 2 — Ouvrir une fenêtre (GLFW + X11 + OpenGL)
+## Chapitre 2 — Ouvrir une fenêtre ([GLFW](#glossary-glfw "Bibliothèque C pour créer des fenêtres et gérer les entrées clavier/souris") + [X11](#glossary-x11 "Système de fenêtrage historique de Linux (serveur d'affichage)") + [OpenGL](#glossary-opengl-44 "API graphique bas-niveau pour communiquer avec le GPU"))
 
 Le premier vrai travail se fait dans `window_create()` ([src/window.c](https://github.com/yoyonel/suckless-ogl/blob/master/src/window.c)).
 
-### 2.1 — Initialisation GLFW et Window Hints
+### 2.1 — Initialisation [GLFW](#glossary-glfw "Bibliothèque C pour créer des fenêtres et gérer les entrées clavier/souris") et [Window Hints](#glossary-window-hints "Paramètres GLFW configurés avant la création de la fenêtre (version OpenGL, profil, MSAA…)")
 
 ```c
 glfwInit();
@@ -122,7 +122,7 @@ glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);     // Messages de debug
 glfwWindowHint(GLFW_SAMPLES, DEFAULT_SAMPLES);           // MSAA = 1 (désactivé)
 ```
 
-En coulisses, [GLFW](#glossary-glfw) effectue un **handshake X11** complet :
+En coulisses, [GLFW](#glossary-glfw "Bibliothèque C pour créer des fenêtres et gérer les entrées clavier/souris") effectue un **handshake [X11](#glossary-x11 "Système de fenêtrage historique de Linux (serveur d'affichage)")** complet :
 
 <pre class="mermaid">
 sequenceDiagram
@@ -154,7 +154,7 @@ sequenceDiagram
 gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 ```
 
-OpenGL n'est **pas une bibliothèque** au sens classique — c'est une *spécification*. Les adresses réelles des fonctions vivent dans le driver GPU ([Mesa](#glossary-mesa), NVIDIA, AMD). [GLAD](#glossary-glad) interroge chaque adresse à l'exécution via `glXGetProcAddress` et remplit une table de pointeurs de fonctions. Après cet appel, `glCreateShader`, `glDispatchCompute`, etc. deviennent utilisables.
+OpenGL n'est **pas une bibliothèque** au sens classique — c'est une *spécification*. Les adresses réelles des fonctions vivent dans le driver GPU ([Mesa](#glossary-mesa "Implémentation open-source des API graphiques (OpenGL, Vulkan) sous Linux"), NVIDIA, AMD). [GLAD](#glossary-glad "Générateur de loader OpenGL — résout les adresses des fonctions GL au runtime") interroge chaque adresse à l'exécution via `glXGetProcAddress` et remplit une table de pointeurs de fonctions. Après cet appel, `glCreateShader`, `glDispatchCompute`, etc. deviennent utilisables.
 
 ### 2.3 — Contexte debug OpenGL
 
@@ -171,7 +171,7 @@ glfwSwapInterval(0);                    // VSync OFF — FPS illimité
 glfwSetInputMode(app->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  // Mode FPS
 ```
 
-Le curseur est capturé en **mode relatif** — les mouvements souris produisent des deltas pour le contrôle orbital de la caméra.
+Le curseur est capturé en **mode relatif** — les mouvements souris produisent des deltas pour le [contrôle orbital](#glossary-camera-orbitale "Contrôle caméra qui tourne autour d'un point d'intérêt via yaw/pitch depuis les mouvements souris") de la caméra.
 
 ---
 
@@ -188,12 +188,12 @@ camera_init(&app->camera, 20.0F, -90.0F, 0.0F);
 La caméra démarre à :
 
 - **Distance** : 20 unités de l'origine
-- **Yaw** : −90° (regarde le long de −Z)
-- **Pitch** : 0° (niveau de l'horizon)
-- **FOV** : 60° vertical
-- **Z-clip** : [0.1, 1000.0]
+- **[Yaw](#glossary-yaw---pitch "Yaw = rotation gauche-droite, Pitch = rotation haut-bas de la caméra")** : −90° (regarde le long de −Z)
+- **[Pitch](#glossary-yaw---pitch "Yaw = rotation gauche-droite, Pitch = rotation haut-bas de la caméra")** : 0° (niveau de l'horizon)
+- **[FOV](#glossary-fov "Field of View — angle de vision de la caméra (60° ici)")** : 60° vertical
+- **[Z-clip](#glossary-z-clip "Plans de découpage proche et lointain de la caméra — définissent la plage de profondeur visible")** : [0.1, 1000.0]
 
-Elle utilise un **modèle physique à pas fixe** (60 Hz) avec lissage exponentiel pour la rotation :
+Elle utilise un **modèle [physique à pas fixe](#glossary-pas-fixe-fixed-timestep "Mise à jour de la physique à intervalle constant (ex: 60 Hz) indépendamment du framerate")** (60 Hz) avec lissage exponentiel pour la rotation :
 
 <pre class="mermaid">
 graph LR
@@ -219,7 +219,7 @@ graph LR
 app->async_loader = async_loader_create(&app->tracy_mgr);
 ```
 
-Un **thread POSIX dédié** est créé pour les I/O en arrière-plan. Il dort sur une [variable de condition](#glossary-variable-de-condition) (`pthread_cond_wait`) jusqu'à ce qu'un travail soit soumis. Cela empêche les lectures disque de bloquer la boucle de rendu.
+Un **[thread POSIX](#glossary-posix-threads "API standard de threads sur Unix/Linux (`pthread_create`, `pthread_cond_wait`)") dédié** est créé pour les I/O en arrière-plan. Il dort sur une [variable de condition](#glossary-variable-de-condition "Mécanisme de synchronisation : un thread dort jusqu'à ce qu'un autre le réveille") (`pthread_cond_wait`) jusqu'à ce qu'un travail soit soumis. Cela empêche les lectures disque de bloquer la boucle de rendu.
 
 <pre class="mermaid">
 stateDiagram-v2
@@ -252,14 +252,14 @@ scene->specular_aa_enabled = 1;                 // AA basé sur la courbure
 
 ### 4.2 — Textures factices et BRDF LUT
 
-Deux textures sentinelles sont créées immédiatement — elles servent de **fallback** tant qu'une texture [IBL](#glossary-ibl) n'est pas prête :
+Deux textures sentinelles sont créées immédiatement — elles servent de **fallback** tant qu'une texture [IBL](#glossary-ibl "Image-Based Lighting — éclairage extrait d'une image panoramique HDR de l'environnement") n'est pas prête :
 
 ```c
 scene->dummy_black_tex = render_utils_create_color_texture(0.0, 0.0, 0.0, 0.0);  // 1×1 RGBA
 scene->dummy_white_tex = render_utils_create_color_texture(1.0, 1.0, 1.0, 1.0);  // 1×1 RGBA
 ```
 
-Puis la **[BRDF LUT](#glossary-brdf-lut)** (Look-Up Table) est générée une seule fois via [compute shader](#glossary-compute-shader) :
+Puis la **[BRDF LUT](#glossary-brdf-lut "Texture pré-calculée qui encode l'intégrale BRDF pour toutes les combinaisons (angle, rugosité)")** (Look-Up Table) est générée une seule fois via [compute shader](#glossary-compute-shader "Shader généraliste pour du calcul GPU hors pipeline de rendu") :
 
 ```c
 scene->brdf_lut_tex = build_brdf_lut_map(512);
@@ -269,30 +269,30 @@ scene->brdf_lut_tex = build_brdf_lut_map(512);
 |-----------|--------|
 | Taille | 512 × 512 |
 | Format | `GL_RG16F` (2 canaux, 16-bit float chacun) |
-| Contenu | BRDF split-sum pré-intégrée (Schlick-GGX) |
-| Shader | `shaders/IBL/spbrdf.glsl` (compute) |
-| Work groups | 16 × 16 (512/32 par axe) |
+| Contenu | [BRDF](#glossary-brdf "Bidirectional Reflectance Distribution Function — fonction décrivant comment la lumière rebondit sur une surface") split-sum pré-intégrée ([Fresnel-Schlick](#glossary-fresnel-schlick "Approximation de l'effet Fresnel : les surfaces reflètent plus en angle rasant")–[GGX](#glossary-ggx---smith-ggx "Modèle de micro-facettes pour la géométrie et distribution des normales (rugosité)")) |
+| [Shader](#glossary-shader "Programme exécuté directement sur le GPU (vertex, fragment, compute)") | `shaders/IBL/spbrdf.glsl` ([compute](#glossary-compute-shader "Shader généraliste pour du calcul GPU hors pipeline de rendu")) |
+| [Work groups](#glossary-work-group "Groupe de threads GPU exécutés ensemble dans un compute shader (ex: 16×16 = 256 threads)") | 16 × 16 (512/32 par axe) |
 
-Cette texture mappe `(NdotV, roughness)` → `(F0_scale, F0_bias)` et est utilisée chaque frame par le [fragment shader](#glossary-fragment-shader) [PBR](#glossary-pbr) pour éviter l'intégration [BRDF](#glossary-brdf) coûteuse en temps réel.
+Cette texture mappe `(NdotV, roughness)` → `(F0_scale, F0_bias)` et est utilisée chaque frame par le [fragment shader](#glossary-fragment-shader "Shader qui calcule la couleur de chaque pixel à l'écran") [PBR](#glossary-pbr "Physically-Based Rendering — modèle d'éclairage qui simule la physique réelle de la lumière") pour éviter l'intégration [BRDF](#glossary-brdf "Bidirectional Reflectance Distribution Function — fonction décrivant comment la lumière rebondit sur une surface") coûteuse en temps réel.
 
 ### 4.3 — Deux modes de rendu : Billboard Ray-Tracing vs. Mesh Icosphère
 
-Le moteur supporte deux stratégies de rendu de sphères. Le **mode par défaut** est le [billboard](#glossary-billboard) [ray-tracing](#glossary-ray-tracing).
+Le moteur supporte deux stratégies de rendu de sphères. Le **mode par défaut** est le [billboard](#glossary-billboard "Quad (rectangle) toujours face à la caméra, utilisé ici comme surface de ray-tracing") [ray-tracing](#glossary-ray-tracing "Technique qui trace des rayons lumineux pour calculer l'intersection avec des objets").
 
 #### Mode par défaut : Billboard + Ray-Tracing par pixel (billboard_mode = 1)
 
-Chaque sphère est rendue comme un **simple [quad](#glossary-quad) aligné à l'écran** (4 vertices, 2 triangles). Le fragment [shader](#glossary-shader) effectue une **intersection rayon-sphère analytique** par pixel, produisant des sphères mathématiquement parfaites.
+Chaque sphère est rendue comme un **simple [quad](#glossary-quad "Rectangle composé de 2 triangles — la primitive 2D de base") aligné à l'écran** (4 vertices, 2 triangles). Le fragment [shader](#glossary-shader "Programme exécuté directement sur le GPU (vertex, fragment, compute)") effectue une **intersection rayon-sphère analytique** par pixel, produisant des sphères mathématiquement parfaites.
 
 ![Géométrie AABB du billboard — le quad projeté enveloppe la sphère à l'écran]({static}/images/suckless-ogl/billboard_aabb_geometry.png)
-*<center>Le [vertex shader](#glossary-vertex-shader) projette un quad serré autour de la bounding box à l'écran de la sphère via calcul de tangentes analytiques.</center>*
+*<center>Le [vertex shader](#glossary-vertex-shader "Shader qui traite chaque sommet de la géométrie (position, projection)") projette un quad serré autour de la [bounding box](#glossary-aabb "Axis-Aligned Bounding Box — boîte englobante alignée aux axes, pour le culling rapide") à l'écran de la sphère via calcul de tangentes analytiques.</center>*
 
 **Avantages** :
 
 - Silhouettes parfaites au pixel près (jamais de facettage polygonal)
 - Profondeur correcte par pixel (`gl_FragDepth` écrit depuis le point d'intersection)
-- Normales analytiquement lisses (normalisé `hitPos − center`)
-- Anti-aliasing des bords via atténuation douce du [discriminant](#glossary-discriminant)
-- Vraie transparence alpha (aspect verre, avec tri [back-to-front](#glossary-back-to-front))
+- [Normales](#glossary-normale "Vecteur perpendiculaire à la surface en un point — détermine l'orientation de la surface") analytiquement lisses (normalisé `hitPos − center`)
+- [Anti-aliasing](#glossary-anti-aliasing "Technique de lissage des bords en escalier (aliasing) pour un rendu visuellement plus propre") des bords via atténuation douce du [discriminant](#glossary-discriminant "Valeur mathématique (b²−c) déterminant si un rayon touche une sphère")
+- Vraie transparence alpha (aspect verre, avec tri [back-to-front](#glossary-back-to-front "Ordre de rendu du plus loin au plus proche, nécessaire pour la transparence correcte"))
 
 <pre class="mermaid">
 graph LR
@@ -309,11 +309,11 @@ graph LR
     style D fill:#999,stroke:#333,stroke-width:1px
 </pre>
 
-> **💡 Pourquoi le billboard ray-tracing ?** Avec 100 sphères, l'approche billboard utilise **100 × 4 = 400 vertices** au total, versus **100 × 642 = 64 200 vertices** pour des icosphères niveau 3. Plus important encore, les sphères sont **mathématiquement parfaites** à tout niveau de zoom — aucun artefact de [tessellation](#glossary-tessellation).
+> **💡 Pourquoi le [billboard](#glossary-billboard "Quad (rectangle) toujours face à la caméra, utilisé ici comme surface de ray-tracing") ray-tracing ?** Avec 100 sphères, l'approche billboard utilise **100 × 4 = 400 vertices** au total, versus **100 × 642 = 64 200 vertices** pour des [icosphères](#glossary-icosphre "Sphère construite en subdivisant un icosaèdre (20 faces) — plus uniforme qu'une UV sphere") niveau 3. Plus important encore, les sphères sont **mathématiquement parfaites** à tout niveau de zoom — aucun artefact de [tessellation](#glossary-tessellation "Subdivision de la géométrie en triangles plus fins pour plus de détail").
 
 #### Fallback : Mesh icosphère instancié (billboard_mode = 0)
 
-Le chemin [icosphère](#glossary-icosphre) génère un icosaèdre subdivisé récursivement :
+Le chemin [icosphère](#glossary-icosphre "Sphère construite en subdivisant un icosaèdre (20 faces) — plus uniforme qu'une UV sphere") génère un [icosaèdre](#glossary-icosphre "Sphère construite en subdivisant un icosaèdre (20 faces) — plus uniforme qu'une UV sphere") subdivisé récursivement :
 
 <pre class="mermaid">
 graph LR
@@ -329,20 +329,20 @@ graph LR
 scene->material_lib = material_load_presets("assets/materials/pbr_materials.json");
 ```
 
-Le fichier JSON définit **101 matériaux PBR** organisés par catégorie :
+Le fichier [JSON](#glossary-json "JavaScript Object Notation — format de fichier texte léger pour stocker des données structurées (clé/valeur)") définit **101 matériaux [PBR](#glossary-pbr "Physically-Based Rendering — modèle d'éclairage qui simule la physique réelle de la lumière")** organisés par catégorie :
 
 | Catégorie | Exemples | Métallicité | Rugosité |
 |-----------|----------|-------------|----------|
 | **Métaux purs** | Or, Argent, Cuivre, Chrome | 1.0 | 0.05–0.2 |
 | **Métaux vieillis** | Fer rouillé, Cuivre oxydé | 0.7–0.95 | 0.4–0.8 |
-| **Diélectriques brillants** | Plastiques colorés | 0.0 | 0.05–0.15 |
+| **[Diélectriques](#glossary-dilectrique "Matériau non-métallique (plastique, verre, bois) — reflète peu à angle direct") brillants** | Plastiques colorés | 0.0 | 0.05–0.15 |
 | **Matériaux mats** | Tissu, Argile, Sable | 0.0 | 0.65–0.95 |
 | **Pierres** | Granit, Marbre, Obsidienne | 0.0 | 0.35–0.85 |
 | **Organiques** | Chêne, Cuir, Os | 0.0 | 0.35–0.75 |
 | **Peintures** | Carrosserie, Nacré, Satin | 0.3–0.7 | 0.1–0.5 |
 | **Techniques** | Caoutchouc, Carbone, Céramique | 0.0–0.1 | 0.05–0.85 |
 
-Chaque matériau fournit : `albedo` (RGB), `metallic` (0–1), `roughness` (0–1).
+Chaque matériau fournit : [`albedo`](#glossary-albedo "Couleur de base d'un matériau (sans éclairage)") (RGB), [`metallic`](#glossary-metallic "Paramètre PBR : 0 = diélectrique (plastique, bois), 1 = métal (or, chrome)") (0–1), [`roughness`](#glossary-roughness "Paramètre PBR : 0 = miroir parfait, 1 = complètement mat") (0–1).
 
 ### 4.5 — La grille d'instances
 
@@ -374,7 +374,7 @@ typedef struct SphereInstance {
 
 ### 4.6 — Layout du VAO (mode billboard)
 
-En mode billboard, le [VAO](#glossary-vao) lie un **quad de 4 vertices** et les données matériaux par instance :
+En mode billboard, le [VAO](#glossary-vao "Vertex Array Object — décrit le format des données géométriques envoyées au GPU") lie un **quad de 4 vertices** et les données matériaux par instance :
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -393,7 +393,7 @@ Location 0–1 : glVertexAttribDivisor = 0 (avance par vertex, 4 verts)
 Location 2–7 : glVertexAttribDivisor = 1 (avance par instance)
 ```
 
-**Appel de draw** : `glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, 100)` — 100 quads, face culling désactivé.
+**Appel de [draw](#glossary-draw-call "Un appel CPU→GPU qui demande le rendu d'un jeu de géométrie")** : `glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, 100)` — 100 quads, [face culling](#glossary-face-culling "Optimisation GPU qui élimine les triangles dont la face arrière est visible — désactivé ici pour les billboards") désactivé.
 
 ### 4.7 — Compilation des shaders
 
@@ -405,7 +405,7 @@ Tous les shaders sont compilés pendant `scene_init()`. Le loader ([src/shader.c
 @header "sh_probe.glsl"
 ```
 
-Ce système inline récursivement les fichiers (profondeur max : 16), avec déduplication type include-guard.
+Ce système inline récursivement les fichiers (profondeur max : 16), avec déduplication type [include-guard](#glossary-include-guard "Mécanisme de déduplication qui empêche un fichier d'être inclus plusieurs fois").
 
 <pre class="mermaid">
 graph TD
@@ -446,14 +446,14 @@ postprocess_init(&app->postprocess, &app->gpu_profiler, 1920, 1080);
 
 ### 5.1 — Le FBO de scène (Multi-Render Target)
 
-Le framebuffer offscreen principal utilise le **[MRT](#glossary-mrt)** (Multiple Render Targets) :
+Le [framebuffer offscreen](#glossary-fbo "Framebuffer Object — surface de rendu offscreen (on dessine dedans au lieu de l'écran)") principal utilise le **[MRT](#glossary-mrt "Multiple Render Targets — écrire dans plusieurs textures en une seule passe de rendu")** (Multiple Render Targets) :
 
 | Attachment | Format | Taille | Rôle |
 |-----------|--------|--------|------|
-| `GL_COLOR_ATTACHMENT0` | `GL_RGBA16F` | 1920×1080 | Couleur HDR de la scène (alpha = luma pour FXAA) |
-| `GL_COLOR_ATTACHMENT1` | `GL_RG16F` | 1920×1080 | Vélocité par pixel pour le motion blur |
-| `GL_DEPTH_STENCIL_ATTACHMENT` | `GL_DEPTH32F_STENCIL8` | 1920×1080 | Buffer de profondeur + masque stencil |
-| Stencil view | `GL_R8UI` | 1920×1080 | Stencil en lecture seule comme texture |
+| `GL_COLOR_ATTACHMENT0` | `GL_RGBA16F` | 1920×1080 | Couleur [HDR](#glossary-hdr "High Dynamic Range — valeurs de couleur supérieures à 1.0 (lumière réaliste)") de la scène (alpha = [luma](#glossary-luma "Approximation rapide de la luminance perçue (0.299R + 0.587G + 0.114B) — utilisée par FXAA pour détecter les bords") pour [FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — anti-crénelage rapide en post-process sur l'image finale")) |
+| `GL_COLOR_ATTACHMENT1` | `GL_RG16F` | 1920×1080 | Vélocité par pixel pour le [motion blur](#glossary-motion-blur "Flou de mouvement par pixel simulant l'obturateur d'une caméra") |
+| `GL_DEPTH_STENCIL_ATTACHMENT` | `GL_DEPTH32F_STENCIL8` | 1920×1080 | Buffer de [profondeur](#glossary-z-buffer---depth-buffer "Texture qui stocke la profondeur de chaque pixel pour gérer l'occlusion") + masque [stencil](#glossary-stencil-buffer "Masque par pixel permettant de restreindre le rendu à certaines zones") |
+| [Stencil view](#glossary-texture-view "Vue alternative sur les données d'une texture existante (format ou couches différents)") | `GL_R8UI` | 1920×1080 | [Stencil](#glossary-stencil-buffer "Masque par pixel permettant de restreindre le rendu à certaines zones") en lecture seule comme texture |
 
 <pre class="mermaid">
 graph TD
@@ -474,11 +474,11 @@ Chaque effet de post-processing initialise ses propres ressources :
 
 | Effet | Ressources GPU |
 |-------|---------------|
-| **Bloom** | FBOs mip-chain (6 niveaux), textures prefilter/downsample/upsample |
-| **DoF** | Texture de flou, texture CoC (Circle of Confusion) |
-| **Auto-Exposure** | Texture de downsample luminance, 2× PBOs (readback), 2× GLSync fences |
-| **Motion Blur** | Texture tile-max velocity (compute), texture neighbor-max (compute) |
-| **3D LUT** | `GL_TEXTURE_3D` 32³ chargé depuis des fichiers `.cube` |
+| **[Bloom](#glossary-bloom "Effet de halo lumineux autour des zones très brillantes (diffusion lumineuse de l'objectif)")** | [FBOs](#glossary-fbo "Framebuffer Object — surface de rendu offscreen (on dessine dedans au lieu de l'écran)") [mip](#glossary-mipmap "Versions pré-réduites d'une texture (½, ¼, ⅛…) pour un filtrage plus propre au loin")-chain (6 niveaux), textures [prefilter](#glossary-prefilter "Passe initiale du bloom qui extrait les pixels au-dessus d'un seuil de luminosité")/[downsample](#glossary-downsample "Réduction progressive de la résolution d'une texture (par 2 à chaque niveau)")/[upsample](#glossary-upsample "Agrandissement progressif d'une texture basse résolution vers la résolution originale") |
+| **[DoF](#glossary-depth-of-field-dof "Profondeur de champ — flou des objets hors de la distance de mise au point")** | Texture de flou, texture [CoC](#glossary-coc "Circle of Confusion — diamètre du disque de flou d'un point hors focus") (Circle of Confusion) |
+| **[Auto-Exposure](#glossary-auto-exposition "Adaptation automatique de la luminosité de la scène (simule l'iris de l'œil)")** | Texture de downsample [luminance](#glossary-luminance "Mesure de l'intensité lumineuse perçue d'une image — utilisée pour l'auto-exposition"), 2× [PBOs](#glossary-pbo "Pixel Buffer Object — buffer pour les transferts asynchrones de pixels CPU↔GPU") (readback), 2× [GLSync fences](#glossary-fence-glsync "Objet de synchronisation GPU — permet d'attendre qu'un travail GPU soit terminé") |
+| **[Motion Blur](#glossary-motion-blur "Flou de mouvement par pixel simulant l'obturateur d'une caméra")** | Texture [tile-max velocity](#glossary-tile-max-velocity "Texture intermédiaire qui stocke la vélocité maximale par tuile (ex: 20×20 pixels), pour optimiser le motion blur") ([compute](#glossary-compute-shader "Shader généraliste pour du calcul GPU hors pipeline de rendu")), texture [neighbor-max](#glossary-neighbor-max "Texture qui propage la vélocité max aux tuiles voisines, couvrant le flou de mouvement inter-tuiles") ([compute](#glossary-compute-shader "Shader généraliste pour du calcul GPU hors pipeline de rendu")) |
+| **[3D LUT](#glossary-3d-lut "Table 3D de correspondance couleur → couleur pour un &quot;look&quot; cinématique (fichier `.cube`)")** | `GL_TEXTURE_3D` 32³ chargé depuis des fichiers [`.cube`](#glossary-cube-format "Format de fichier texte définissant une LUT 3D de correspondance couleur, standard dans le cinéma et les DCC") |
 
 ### 5.3 — Effets actifs par défaut
 
@@ -486,7 +486,7 @@ Chaque effet de post-processing initialise ses propres ressources :
 postprocess_enable(&app->postprocess, POSTFX_FXAA);  // Seulement FXAA
 ```
 
-Au démarrage, seul **[FXAA](#glossary-fxaa)** est actif. Les autres effets sont activés/désactivés en temps réel via raccourcis clavier.
+Au démarrage, seul **[FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — anti-crénelage rapide en post-process sur l'image finale")** est actif. Les autres effets sont activés/désactivés en temps réel via raccourcis clavier.
 
 ---
 
@@ -496,7 +496,7 @@ Au démarrage, seul **[FXAA](#glossary-fxaa)** est actif. Les autres effets sont
 env_manager_load(&app->env_mgr, app->async_loader, "env.hdr");
 ```
 
-Cela déclenche le **pipeline de [chargement asynchrone](#glossary-chargement-asynchrone) d'environnement** — l'opération multi-frame la plus complexe du moteur.
+Cela déclenche le **pipeline de [chargement asynchrone](#glossary-chargement-asynchrone "Exécuter les I/O disque sur un thread séparé pour ne pas bloquer le rendu") d'environnement** — l'opération multi-frame la plus complexe du moteur.
 
 ### 6.1 — Séquence de chargement async
 
@@ -545,11 +545,11 @@ stateDiagram-v2
 
 ---
 
-## Chapitre 7 — Génération IBL (progressive, multi-frame)
+## Chapitre 7 — Génération [IBL](#glossary-ibl "Image-Based Lighting — éclairage extrait d'une image panoramique HDR de l'environnement") (progressive, multi-frame)
 
-Une fois la texture [HDR](#glossary-hdr) uploadée, le **coordinateur IBL** ([src/ibl_coordinator.c](https://github.com/yoyonel/suckless-ogl/blob/master/src/ibl_coordinator.c)) prend le relais. Il calcule trois maps sur plusieurs frames pour éviter les stalls GPU.
+Une fois la texture [HDR](#glossary-hdr "High Dynamic Range — valeurs de couleur supérieures à 1.0 (lumière réaliste)") uploadée, le **coordinateur [IBL](#glossary-ibl "Image-Based Lighting — éclairage extrait d'une image panoramique HDR de l'environnement")** ([src/ibl_coordinator.c](https://github.com/yoyonel/suckless-ogl/blob/master/src/ibl_coordinator.c)) prend le relais. Il calcule trois maps sur plusieurs frames pour éviter les [stalls GPU](#glossary-gpu-stall "Blocage du pipeline GPU quand il attend une ressource ou une synchronisation — provoque des chutes de framerate").
 
-### 7.1 — Les trois maps IBL
+### 7.1 — Les trois maps [IBL](#glossary-ibl "Image-Based Lighting — éclairage extrait d'une image panoramique HDR de l'environnement")
 
 <pre class="mermaid">
 graph TB
@@ -566,23 +566,23 @@ graph TB
     LUM -->|"Seuil auto-exposure"| PP["Post-Process"]
 </pre>
 
-| Map | Résolution | Format | Niveaux Mip | Compute Shader |
+| Map | Résolution | Format | Niveaux [Mip](#glossary-mipmap "Versions pré-réduites d'une texture (½, ¼, ⅛…) pour un filtrage plus propre au loin") | [Compute Shader](#glossary-compute-shader "Shader généraliste pour du calcul GPU hors pipeline de rendu") |
 |-----|-----------|--------|-------------|----------------|
-| **Prefiltre Spéculaire** | 1024×1024 | `GL_RGBA16F` | 5 | `IBL/spmap.glsl` |
-| **Irradiance** | 64×64 | `GL_RGBA16F` | 1 | `IBL/irmap.glsl` |
-| **Luminance** | 1×1 | `GL_R32F` | 1 | `IBL/luminance_reduce_pass1/2.glsl` |
+| **[Prefiltre Spéculaire](#glossary-prefiltre-spculaire "Texture mip-mappée encodant les réflexions floues par niveau de rugosité")** | 1024×1024 | `GL_RGBA16F` | 5 | `IBL/spmap.glsl` |
+| **[Irradiance](#glossary-irradiance-map "Texture encodant la lumière ambiante diffuse intégrée sur l'hémisphère pour chaque direction")** | 64×64 | `GL_RGBA16F` | 1 | `IBL/irmap.glsl` |
+| **[Luminance](#glossary-luminance "Mesure de l'intensité lumineuse perçue d'une image — utilisée pour l'auto-exposition")** | 1×1 | `GL_R32F` | 1 | `IBL/luminance_reduce_pass1/2.glsl` |
 
 ### 7.2 — Stratégie de découpage progressif
 
-Pour éviter les pics de frame time, chaque niveau mip est subdivisé en **slices** traitées sur des frames consécutives :
+Pour éviter les pics de [frame time](#glossary-frame-time "Durée totale de rendu d'une image — 16.6ms à 60 FPS, tout dépassement provoque un saccade"), chaque niveau [mip](#glossary-mipmap "Versions pré-réduites d'une texture (½, ¼, ⅛…) pour un filtrage plus propre au loin") est subdivisé en **slices** traitées sur des frames consécutives :
 
-| Étape IBL | GPU Hardware | GPU Software (llvmpipe) |
+| Étape [IBL](#glossary-ibl "Image-Based Lighting — éclairage extrait d'une image panoramique HDR de l'environnement") | GPU Hardware | GPU Software ([llvmpipe](#glossary-llvmpipe "Driver OpenGL logiciel de Mesa — émule le GPU entièrement sur CPU via LLVM JIT, utilisé en CI ou sans carte graphique")) |
 |-----------|-------------|------------------------|
 | Specular Mip 0 (1024²) | 24 slices (42 lignes chacune) | 1 slice (complet) |
 | Specular Mip 1 (512²) | 8 slices | 1 slice |
 | Specular Mips 2–4 | Groupées (1 dispatch) | 1 slice |
-| Irradiance (64²) | 12 slices | 1 slice |
-| Luminance | 2 dispatches (pass 1 + 2) | 2 dispatches |
+| [Irradiance](#glossary-irradiance-map "Texture encodant la lumière ambiante diffuse intégrée sur l'hémisphère pour chaque direction") (64²) | 12 slices | 1 slice |
+| [Luminance](#glossary-luminance "Mesure de l'intensité lumineuse perçue d'une image — utilisée pour l'auto-exposition") | 2 [dispatches](#glossary-dispatch "Appel CPU qui lance un compute shader sur le GPU") (pass 1 + 2) | 2 [dispatches](#glossary-dispatch "Appel CPU qui lance un compute shader sur le GPU") |
 
 <pre class="mermaid">
 gantt
@@ -632,7 +632,7 @@ enum IBLState {
 
 ## Chapitre 8 — La boucle principale
 
-`app_run()` ([src/app.c](https://github.com/yoyonel/suckless-ogl/blob/master/src/app.c)) est le battement de cœur — une **boucle de jeu non capée** classique avec physique à pas fixe.
+`app_run()` ([src/app.c](https://github.com/yoyonel/suckless-ogl/blob/master/src/app.c)) est le battement de cœur — une **[boucle de jeu](#glossary-game-loop "Boucle principale d'un jeu : lire les entrées → mettre à jour → dessiner → recommencer") non capée** classique avec [physique à pas fixe](#glossary-pas-fixe-fixed-timestep "Mise à jour de la physique à intervalle constant (ex: 60 Hz) indépendamment du framerate").
 
 <pre class="mermaid">
 graph TD
@@ -649,7 +649,7 @@ graph TD
 
 ### 8.1 — Resize différé
 
-Les événements de redimensionnement sont **différés** — le callback [GLFW](#glossary-glfw) enregistre seulement les nouvelles dimensions. La recréation réelle des FBOs se fait au début de la frame suivante, hors du contexte limité du callback.
+Les événements de redimensionnement sont **différés** — le callback [GLFW](#glossary-glfw "Bibliothèque C pour créer des fenêtres et gérer les entrées clavier/souris") enregistre seulement les nouvelles dimensions. La recréation réelle des FBOs se fait au début de la frame suivante, hors du contexte limité du callback.
 
 ### 8.2 — Intégration caméra à pas fixe
 
@@ -692,7 +692,7 @@ graph TD
 
 ### 9.2 — Pass 1 : Skybox
 
-La [skybox](#glossary-skybox) est dessinée **en premier**, avec le test de profondeur **désactivé**. Elle utilise une astuce de [quad](#glossary-quad) plein écran :
+La [skybox](#glossary-skybox "Image panoramique affichée en fond de scène comme ciel/environnement") est dessinée **en premier**, avec le test de profondeur **désactivé**. Elle utilise une astuce de [quad](#glossary-quad "Rectangle composé de 2 triangles — la primitive 2D de base") plein écran :
 
 ```glsl
 // background.vert — reconstruction du rayon en espace monde
@@ -712,7 +712,7 @@ VelocityOut = vec2(0.0);          // Pas de mouvement pour la skybox
 
 ### 9.3 — Pass 2 : Tri des sphères (Bitonic Sort GPU)
 
-Pour le rendu transparent par [billboard](#glossary-billboard), les sphères doivent être dessinées **back-to-front** :
+Pour le rendu transparent par [billboard](#glossary-billboard "Quad (rectangle) toujours face à la caméra, utilisé ici comme surface de ray-tracing"), les sphères doivent être dessinées **back-to-front** :
 
 | Mode | Où | Algorithme | Complexité |
 |------|-----|-----------|------------|
@@ -735,10 +735,10 @@ C'est le cœur du rendu. **Un seul appel de draw rend les 100 sphères** :
 
 ### 9.5 — Le fragment shader billboard (intersection rayon-sphère)
 
-Le [fragment shader](#glossary-fragment-shader) (`pbr_ibl_billboard.frag`) est là où la magie opère. Au lieu de [shader](#glossary-shader) un [mesh](#glossary-mesh) rastérisé, il **intersecte analytiquement un rayon avec une sphère parfaite** :
+Le [fragment shader](#glossary-fragment-shader "Shader qui calcule la couleur de chaque pixel à l'écran") (`pbr_ibl_billboard.frag`) est là où la magie opère. Au lieu de [shader](#glossary-shader "Programme exécuté directement sur le GPU (vertex, fragment, compute)") un [mesh](#glossary-mesh "Ensemble de triangles formant un objet 3D") rastérisé, il **intersecte analytiquement un rayon avec une sphère parfaite** :
 
 ![Intersection rayon-sphère — le principe géométrique]({static}/images/suckless-ogl/sphere_intersection.jpg)
-*<center>Intersection rayon-sphère analytique : le [discriminant](#glossary-discriminant) détermine si le pixel touche la sphère.</center>*
+*<center>Intersection rayon-sphère analytique : le [discriminant](#glossary-discriminant "Valeur mathématique (b²−c) déterminant si un rayon touche une sphère") détermine si le pixel touche la sphère.</center>*
 
 ```glsl
 // Intersection rayon-sphère analytique
@@ -775,7 +775,7 @@ graph TD
 #### Anti-aliasing analytique des bords
 
 ![Anti-aliasing analytique des sphères — smoothstep sur le discriminant]({static}/images/suckless-ogl/sphere_analytic_aa.jpg)
-*<center>L'anti-aliasing analytique utilise le discriminant comme métrique de distance au bord — pas besoin de [MSAA](#glossary-msaa) pour des bords lisses.</center>*
+*<center>L'anti-aliasing analytique utilise le discriminant comme métrique de distance au bord — pas besoin de [MSAA](#glossary-msaa "Multisample Anti-Aliasing — anti-crénelage géométrique (coûteux, évité ici)") pour des bords lisses.</center>*
 
 ```glsl
 float pixelSizeWorld = (2.0 * clipW) / (proj[1][1] * screenHeight);
@@ -784,18 +784,18 @@ FragColor = vec4(color * edgeFactor, edgeFactor);  // alpha prémultiplié
 ```
 
 ![Détail de l'anti-aliasing parfait des sphères]({static}/images/suckless-ogl/sphere_perfect_aa_detail.jpg)
-*<center>Détail en gros plan : les bords des sphères sont parfaitement lisses grâce au [ray-tracing](#glossary-ray-tracing) analytique.</center>*
+*<center>Détail en gros plan : les bords des sphères sont parfaitement lisses grâce au [ray-tracing](#glossary-ray-tracing "Technique qui trace des rayons lumineux pour calculer l'intersection avec des objets") analytique.</center>*
 
 #### Projection billboard
 
 ![Optimisation de projection AABB des sphères]({static}/images/suckless-ogl/sphere_aabb_optimization_projective.png)
-*<center>Le [vertex shader](#glossary-vertex-shader) calcule un quad serré à l'écran via projection tangentielle analytique, gérant 3 cas : caméra dehors, dedans, ou derrière la sphère.</center>*
+*<center>Le [vertex shader](#glossary-vertex-shader "Shader qui traite chaque sommet de la géométrie (position, projection)") calcule un quad serré à l'écran via projection tangentielle analytique, gérant 3 cas : caméra dehors, dedans, ou derrière la sphère.</center>*
 
 ---
 
 ## Chapitre 10 — Pipeline de post-processing
 
-Après le rendu de la scène 3D dans le [FBO](#glossary-fbo) [MRT](#glossary-mrt), `postprocess_end()` applique jusqu'à **8 effets** dans un pipeline soigneusement ordonné.
+Après le rendu de la scène 3D dans le [FBO](#glossary-fbo "Framebuffer Object — surface de rendu offscreen (on dessine dedans au lieu de l'écran)") [MRT](#glossary-mrt "Multiple Render Targets — écrire dans plusieurs textures en une seule passe de rendu"), `postprocess_end()` applique jusqu'à **8 effets** dans un pipeline soigneusement ordonné.
 
 ### 10.1 — Le pipeline en 7 étapes
 
@@ -825,15 +825,15 @@ Voici le rendu **vue de face** avec différents effets activés individuellement
 
 #### Sans post-processing (brut)
 ![Rendu brut sans aucun post-processing]({static}/images/suckless-ogl/ref_front_subtle_none.png)
-*<center>Image brute en sortie du rendu [PBR](#glossary-pbr) — pas de post-traitement appliqué.</center>*
+*<center>Image brute en sortie du rendu [PBR](#glossary-pbr "Physically-Based Rendering — modèle d'éclairage qui simule la physique réelle de la lumière") — pas de post-traitement appliqué.</center>*
 
 #### FXAA (anti-aliasing rapide)
 ![Rendu avec FXAA activé]({static}/images/suckless-ogl/ref_front_subtle_fxaa.png)
-*<center>[FXAA](#glossary-fxaa) (Fast Approximate Anti-Aliasing) — lisse les bords sans coût de [MSAA](#glossary-msaa).</center>*
+*<center>[FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — anti-crénelage rapide en post-process sur l'image finale") (Fast Approximate Anti-Aliasing) — lisse les bords sans coût de [MSAA](#glossary-msaa "Multisample Anti-Aliasing — anti-crénelage géométrique (coûteux, évité ici)").</center>*
 
 #### Bloom
 ![Rendu avec Bloom activé]({static}/images/suckless-ogl/ref_front_subtle_bloom.png)
-*<center>[Bloom](#glossary-bloom) — les zones lumineuses débordent, simulant la diffusion lumineuse d'un objectif.</center>*
+*<center>[Bloom](#glossary-bloom "Effet de halo lumineux autour des zones très brillantes (diffusion lumineuse de l'objectif)") — les zones lumineuses débordent, simulant la diffusion lumineuse d'un objectif.</center>*
 
 #### Depth of Field (Profondeur de champ)
 ![Rendu avec Depth of Field activé]({static}/images/suckless-ogl/ref_front_subtle_dof.png)
@@ -841,19 +841,19 @@ Voici le rendu **vue de face** avec différents effets activés individuellement
 
 #### Auto-Exposure
 ![Rendu avec Auto-Exposure activé]({static}/images/suckless-ogl/ref_front_subtle_auto_exposure.png)
-*<center>[Auto-exposition](#glossary-auto-exposition) — le moteur adapte l'exposition comme l'œil humain s'adaptant à la luminosité.</center>*
+*<center>[Auto-exposition](#glossary-auto-exposition "Adaptation automatique de la luminosité de la scène (simule l'iris de l'œil)") — le moteur adapte l'exposition comme l'œil humain s'adaptant à la luminosité.</center>*
 
 #### Motion Blur
 ![Rendu avec Motion Blur activé]({static}/images/suckless-ogl/ref_front_subtle_motion_blur.png)
-*<center>[Motion blur](#glossary-motion-blur) par pixel — utilise les vecteurs de vélocité pour simuler le flou de mouvement cinématique.</center>*
+*<center>[Motion blur](#glossary-motion-blur "Flou de mouvement par pixel simulant l'obturateur d'une caméra") par pixel — utilise les vecteurs de vélocité pour simuler le flou de mouvement cinématique.</center>*
 
 #### Profil cinématique Sony A7S III
 ![Rendu avec profil Sony A7S III]({static}/images/suckless-ogl/ref_front_sony_a7siii.png)
-*<center>Profil photographique complet Sony A7S III — [color grading](#glossary-color-grading), balance, exposition et LUT 3D combinés pour un rendu cinématique.</center>*
+*<center>Profil photographique complet Sony A7S III — [color grading](#glossary-color-grading "Ajustement créatif des couleurs (saturation, contraste, gamma, teinte)"), balance, exposition et LUT 3D combinés pour un rendu cinématique.</center>*
 
 ### 10.3 — Optimisation shader par compilation conditionnelle
 
-Le [fragment shader](#glossary-fragment-shader) post-process utilise des **#define au compile-time** pour éliminer les branches :
+Le [fragment shader](#glossary-fragment-shader "Shader qui calcule la couleur de chaque pixel à l'écran") post-process utilise des **#define au compile-time** pour éliminer les branches :
 
 ```glsl
 #ifdef OPT_ENABLE_BLOOM
@@ -870,7 +870,7 @@ Un **cache LRU de 32 entrées** stocke les variantes compilées pour différente
 ### 10.4 — Courbes de tonemapping
 
 ![Courbes de tonemapping comparées]({static}/images/suckless-ogl/tonemapping_curves.png)
-*<center>Comparaison des courbes de [tonemapping](#glossary-tonemapping) disponibles — le passage de [HDR](#glossary-hdr) linéaire à LDR affichable.</center>*
+*<center>Comparaison des courbes de [tonemapping](#glossary-tonemapping "Conversion des couleurs HDR (illimitées) en LDR affichable (0–255)") disponibles — le passage de [HDR](#glossary-hdr "High Dynamic Range — valeurs de couleur supérieures à 1.0 (lumière réaliste)") linéaire à LDR affichable.</center>*
 
 ### 10.5 — Adaptation d'exposition
 
@@ -889,7 +889,7 @@ Voyons ce qui apparaît réellement à l'écran pendant les premières secondes 
 |--------|----------------|-----------|
 | **1–2** | Le loader async lit `env.hdr` depuis le disque | Écran noir (`transition_alpha = 1.0`) |
 | **3–4** | Transfert PBO → GPU (DMA) + génération mipmaps | Écran noir |
-| **5–15** | Calcul IBL progressif (luminance, spéculaire, irradiance) | Écran noir (mais les sphères sont rendues dans le FBO) |
+| **5–15** | Calcul [IBL](#glossary-ibl "Image-Based Lighting — éclairage extrait d'une image panoramique HDR de l'environnement") progressif ([luminance](#glossary-luminance "Mesure de l'intensité lumineuse perçue d'une image — utilisée pour l'auto-exposition"), spéculaire, [irradiance](#glossary-irradiance-map "Texture encodant la lumière ambiante diffuse intégrée sur l'hémisphère pour chaque direction")) | Écran noir (mais les sphères sont rendues dans le [FBO](#glossary-fbo "Framebuffer Object — surface de rendu offscreen (on dessine dedans au lieu de l'écran)")) |
 | **~16** | IBL terminé → `TRANSITION_FADE_IN` | Le fade-in commence |
 | **~20+** | Transition terminée — état stable | Scène PBR complètement éclairée |
 
@@ -904,8 +904,8 @@ Voyons ce qui apparaît réellement à l'écran pendant les premières secondes 
 | **3c. Sphères billboard** | 100 quads ray-tracées, 1 draw call | ~0.5ms GPU |
 | **4a. Bloom** | Downsample → Upsample (si activé) | ~0.3ms GPU |
 | **4b. DoF** | CoC → Flou bokeh (si activé) | ~0.2ms GPU |
-| **4c. Auto-Exposure** | Réduction luminance | ~0.1ms GPU |
-| **4d. Motion Blur** | Tile-max velocity (si activé) | ~0.2ms GPU |
+| **4c. [Auto-Exposure](#glossary-auto-exposition "Adaptation automatique de la luminosité de la scène (simule l'iris de l'œil)")** | Réduction [luminance](#glossary-luminance "Mesure de l'intensité lumineuse perçue d'une image — utilisée pour l'auto-exposition") | ~0.1ms GPU |
+| **4d. [Motion Blur](#glossary-motion-blur "Flou de mouvement par pixel simulant l'obturateur d'une caméra")** | [Tile-max velocity](#glossary-tile-max-velocity "Texture intermédiaire qui stocke la vélocité maximale par tuile (ex: 20×20 pixels), pour optimiser le motion blur") (si activé) | ~0.2ms GPU |
 | **4e. Composite final** | 9 textures, UBO, fullscreen quad | ~0.3ms GPU |
 | **5. UI Overlay** | Texte + profiler + transition | ~0.1ms GPU |
 | **6. SwapBuffers** | Présentation à l'écran | (attente) |
@@ -915,7 +915,7 @@ Voyons ce qui apparaît réellement à l'écran pendant les premières secondes 
 
 ## Chapitre 12 — Budget mémoire GPU
 
-Voici une estimation de la consommation [VRAM](#glossary-vram) en état stable :
+Voici une estimation de la consommation [VRAM](#glossary-vram "Mémoire dédiée du GPU — c'est là que vivent textures et buffers") en état stable :
 
 ### Textures
 
@@ -952,7 +952,7 @@ Voici une estimation de la consommation [VRAM](#glossary-vram) en état stable :
 | Shaders (compilés) | ~2 Mo |
 | **Total** | **~101 Mo VRAM** |
 
-> **💡 Coût dominant** : La map [HDR](#glossary-hdr) d'environnement + chaîne [bloom](#glossary-bloom) + FBOs de scène dominent l'utilisation VRAM. La géométrie elle-même (100 quads [billboard](#glossary-billboard) × 4 vertices en mode par défaut) est négligeable — le vrai calcul de sphère se passe dans le [fragment shader](#glossary-fragment-shader) via [ray-tracing](#glossary-ray-tracing).
+> **💡 Coût dominant** : La map [HDR](#glossary-hdr "High Dynamic Range — valeurs de couleur supérieures à 1.0 (lumière réaliste)") d'environnement + chaîne [bloom](#glossary-bloom "Effet de halo lumineux autour des zones très brillantes (diffusion lumineuse de l'objectif)") + FBOs de scène dominent l'utilisation VRAM. La géométrie elle-même (100 quads [billboard](#glossary-billboard "Quad (rectangle) toujours face à la caméra, utilisé ici comme surface de ray-tracing") × 4 vertices en mode par défaut) est négligeable — le vrai calcul de sphère se passe dans le [fragment shader](#glossary-fragment-shader "Shader qui calcule la couleur de chaque pixel à l'écran") via [ray-tracing](#glossary-ray-tracing "Technique qui trace des rayons lumineux pour calculer l'intersection avec des objets").
 
 ---
 
@@ -1006,6 +1006,7 @@ graph TD
 | <a id="glossary-core-profile"></a>**Core Profile** | Mode OpenGL qui retire les fonctions dépréciées (pipeline fixe) | [OpenGL Wiki — Core Profile](https://www.khronos.org/opengl/wiki/OpenGL_Context#OpenGL_3.1_and_ARB_compatibility) |
 | <a id="glossary-glsl"></a>**GLSL** | *OpenGL Shading Language* — langage des programmes GPU (shaders) | [GLSL Spec (Khronos)](https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.4.40.pdf) |
 | <a id="glossary-glfw"></a>**GLFW** | Bibliothèque C pour créer des fenêtres et gérer les entrées clavier/souris | [glfw.org](https://www.glfw.org/documentation.html) |
+| <a id="glossary-window-hints"></a>**Window Hints** | Paramètres GLFW configurés avant la création de la fenêtre (version OpenGL, profil, MSAA…) | [GLFW — Window Guide](https://www.glfw.org/docs/latest/window_guide.html#window_hints) |
 | <a id="glossary-glad"></a>**GLAD** | Générateur de loader OpenGL — résout les adresses des fonctions GL au runtime | [GLAD Generator](https://glad.dav1d.de/) |
 | <a id="glossary-glx"></a>**GLX** | Extension X11 qui fait le pont entre le Window System et OpenGL sous Linux | [GLX Spec (Khronos)](https://registry.khronos.org/OpenGL/specs/gl/glx1.4.pdf) |
 | <a id="glossary-x11"></a>**X11** | Système de fenêtrage historique de Linux (serveur d'affichage) | [X.Org](https://www.x.org/wiki/) |
@@ -1055,6 +1056,7 @@ graph TD
 | <a id="glossary-tessellation"></a>**Tessellation** | Subdivision de la géométrie en triangles plus fins pour plus de détail | [OpenGL Wiki — Tessellation](https://www.khronos.org/opengl/wiki/Tessellation) |
 | <a id="glossary-mesh"></a>**Mesh** | Ensemble de triangles formant un objet 3D | [Wikipedia — Polygon mesh](https://en.wikipedia.org/wiki/Polygon_mesh) |
 | <a id="glossary-quad"></a>**Quad** | Rectangle composé de 2 triangles — la primitive 2D de base | [learnopengl.com — Hello Triangle](https://learnopengl.com/Getting-started/Hello-Triangle) |
+| <a id="glossary-anti-aliasing"></a>**Anti-aliasing** | Technique de lissage des bords en escalier (aliasing) pour un rendu visuellement plus propre | [Wikipedia — Anti-aliasing](https://en.wikipedia.org/wiki/Spatial_anti-aliasing) |
 
 ### PBR & Éclairage
 
@@ -1080,18 +1082,29 @@ graph TD
 | Terme | Description | Lien |
 |-------|------------|------|
 | <a id="glossary-bloom"></a>**Bloom** | Effet de halo lumineux autour des zones très brillantes (diffusion lumineuse de l'objectif) | [learnopengl.com — Bloom](https://learnopengl.com/Advanced-Lighting/Bloom) |
+| <a id="glossary-prefilter"></a>**Prefilter (Bloom)** | Passe initiale du bloom qui extrait les pixels au-dessus d'un seuil de luminosité | [learnopengl.com — Bloom](https://learnopengl.com/Advanced-Lighting/Bloom) |
+| <a id="glossary-downsample"></a>**Downsample** | Réduction progressive de la résolution d'une texture (par 2 à chaque niveau) | [learnopengl.com — Bloom](https://learnopengl.com/Advanced-Lighting/Bloom) |
+| <a id="glossary-upsample"></a>**Upsample** | Agrandissement progressif d'une texture basse résolution vers la résolution originale | [learnopengl.com — Bloom](https://learnopengl.com/Advanced-Lighting/Bloom) |
 | <a id="glossary-depth-of-field-dof"></a>**Depth of Field (DoF)** | Profondeur de champ — flou des objets hors de la distance de mise au point | [Wikipedia — Depth of field](https://en.wikipedia.org/wiki/Depth_of_field) |
 | <a id="glossary-coc"></a>**CoC** | *Circle of Confusion* — diamètre du disque de flou d'un point hors focus | [Wikipedia — CoC](https://en.wikipedia.org/wiki/Circle_of_confusion) |
 | <a id="glossary-bokeh"></a>**Bokeh** | Forme esthétique du flou d'arrière-plan (disques, hexagones…) | [Wikipedia — Bokeh](https://en.wikipedia.org/wiki/Bokeh) |
 | <a id="glossary-motion-blur"></a>**Motion Blur** | Flou de mouvement par pixel simulant l'obturateur d'une caméra | [GPU Gems — Motion Blur](https://developer.nvidia.com/gpugems/gpugems3/part-iv-image-effects/chapter-27-motion-blur-post-processing-effect) |
+| <a id="glossary-tile-max-velocity"></a>**Tile-Max Velocity** | Texture intermédiaire qui stocke la vélocité maximale par tuile (ex: 20×20 pixels), pour optimiser le motion blur | [McGuire — Motion Blur](https://casual-effects.com/research/McGuire2012Blur/index.html) |
+| <a id="glossary-neighbor-max"></a>**Neighbor-Max** | Texture qui propage la vélocité max aux tuiles voisines, couvrant le flou de mouvement inter-tuiles | [McGuire — Motion Blur](https://casual-effects.com/research/McGuire2012Blur/index.html) |
+| <a id="glossary-cube-format"></a>**.cube** | Format de fichier texte définissant une LUT 3D de correspondance couleur, standard dans le cinéma et les DCC | [Adobe — .cube LUT Spec](https://wwwimages2.adobe.com/content/dam/acom/en/products/speedgrade/cc/pdfs/cube-lut-specification-1.0.pdf) |
 | <a id="glossary-fxaa"></a>**FXAA** | *Fast Approximate Anti-Aliasing* — anti-crénelage rapide en post-process sur l'image finale | [NVIDIA — FXAA](https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf) |
 | <a id="glossary-msaa"></a>**MSAA** | *Multisample Anti-Aliasing* — anti-crénelage géométrique (coûteux, évité ici) | [OpenGL Wiki — Multisampling](https://www.khronos.org/opengl/wiki/Multisampling) |
 | <a id="glossary-tonemapping"></a>**Tonemapping** | Conversion des couleurs HDR (illimitées) en LDR affichable (0–255) | [learnopengl.com — HDR](https://learnopengl.com/Advanced-Lighting/HDR) |
 | <a id="glossary-color-grading"></a>**Color Grading** | Ajustement créatif des couleurs (saturation, contraste, gamma, teinte) | [Wikipedia — Color grading](https://en.wikipedia.org/wiki/Color_grading) |
 | <a id="glossary-3d-lut"></a>**3D LUT** | Table 3D de correspondance couleur → couleur pour un "look" cinématique (fichier `.cube`) | [Wikipedia — 3D LUT](https://en.wikipedia.org/wiki/3D_lookup_table) |
 | <a id="glossary-vignette"></a>**Vignette** | Assombrissement progressif des bords de l'image (effet objectif) | [Wikipedia — Vignetting](https://en.wikipedia.org/wiki/Vignetting) |
+| <a id="glossary-grain-film"></a>**Grain film** | Bruit photographique simulé ajouté à l'image pour un rendu analogique/cinématique | [Wikipedia — Film grain](https://en.wikipedia.org/wiki/Film_grain) |
+| <a id="glossary-balance-des-blancs"></a>**Balance des blancs** | Correction de la température de couleur pour que les blancs apparaissent neutres sous différents éclairages | [Wikipedia — White balance](https://en.wikipedia.org/wiki/Color_balance) |
+| <a id="glossary-brouillard-atmospherique"></a>**Brouillard atmosphérique** | Effet de profondeur qui estompe et teinte les objets lointains, simulant la diffusion de la lumière dans l'air | [Wikipedia — Atmospheric scattering](https://en.wikipedia.org/wiki/Rayleigh_scattering) |
 | <a id="glossary-dithering"></a>**Dithering** | Ajout de bruit imperceptible pour casser les artefacts de banding dans les dégradés | [Wikipedia — Dither](https://en.wikipedia.org/wiki/Dither) |
 | <a id="glossary-auto-exposition"></a>**Auto-Exposition** | Adaptation automatique de la luminosité de la scène (simule l'iris de l'œil) | [learnopengl.com — HDR](https://learnopengl.com/Advanced-Lighting/HDR) |
+| <a id="glossary-luminance"></a>**Luminance** | Mesure de l'intensité lumineuse perçue d'une image — utilisée pour l'auto-exposition | [Wikipedia — Luminance](https://en.wikipedia.org/wiki/Relative_luminance) |
+| <a id="glossary-luma"></a>**Luma** | Approximation rapide de la luminance perçue (0.299R + 0.587G + 0.114B) — utilisée par FXAA pour détecter les bords | [Wikipedia — Luma](https://en.wikipedia.org/wiki/Luma_(video)) |
 | <a id="glossary-vsync"></a>**VSync** | *Vertical Sync* — synchronise le rendu avec le rafraîchissement de l'écran (évite le tearing) | [Wikipedia — VSync](https://en.wikipedia.org/wiki/Screen_tearing#V-sync) |
 
 ### Architecture & Performance
@@ -1109,6 +1122,8 @@ graph TD
 | <a id="glossary-memory-barrier"></a>**Memory Barrier** | Instruction GPU garantissant que les écritures précédentes sont visibles avant les lectures suivantes | [OpenGL Wiki — Memory Barrier](https://www.khronos.org/opengl/wiki/Memory_Model#Explicit_memory_barriers) |
 | <a id="glossary-work-group"></a>**Work Group** | Groupe de threads GPU exécutés ensemble dans un compute shader (ex: 16×16 = 256 threads) | [OpenGL Wiki — Compute Shader](https://www.khronos.org/opengl/wiki/Compute_Shader#Compute_space) |
 | <a id="glossary-dispatch"></a>**Dispatch** | Appel CPU qui lance un compute shader sur le GPU | [OpenGL Wiki — Compute Shader](https://www.khronos.org/opengl/wiki/Compute_Shader#Dispatch) |
+| <a id="glossary-gpu-stall"></a>**GPU Stall** | Blocage du pipeline GPU quand il attend une ressource ou une synchronisation — provoque des chutes de framerate | [NVIDIA — GPU Performance](https://developer.nvidia.com/blog/the-peak-performance-analysis-method-for-optimizing-any-gpu-workload/) |
+| <a id="glossary-llvmpipe"></a>**llvmpipe** | Driver OpenGL logiciel de Mesa — émule le GPU entièrement sur CPU via LLVM JIT, utilisé en CI ou sans carte graphique | [Mesa — llvmpipe](https://docs.mesa3d.org/drivers/llvmpipe.html) |
 
 ### Mathématiques & Caméra
 
@@ -1119,10 +1134,12 @@ graph TD
 | <a id="glossary-matrice-de-vue"></a>**Matrice de vue** | Transforme les coordonnées monde en coordonnées caméra (`lookAt`) | [learnopengl.com — Camera](https://learnopengl.com/Getting-started/Camera) |
 | <a id="glossary-matrice-de-projection"></a>**Matrice de projection** | Transforme la 3D en 2D avec perspective (objets lointains = petits) | [learnopengl.com — Coordinate Systems](https://learnopengl.com/Getting-started/Coordinate-Systems) |
 | <a id="glossary-yaw---pitch"></a>**Yaw / Pitch** | Yaw = rotation gauche-droite, Pitch = rotation haut-bas de la caméra | [learnopengl.com — Camera](https://learnopengl.com/Getting-started/Camera) |
+| <a id="glossary-camera-orbitale"></a>**Caméra orbitale** | Contrôle caméra qui tourne autour d'un point d'intérêt via yaw/pitch depuis les mouvements souris | [learnopengl.com — Camera](https://learnopengl.com/Getting-started/Camera) |
 | <a id="glossary-lerp"></a>**Lerp** | *Linear Interpolation* — transition progressive entre deux valeurs : `a + t × (b − a)` | [Wikipedia — Lerp](https://en.wikipedia.org/wiki/Linear_interpolation) |
 | <a id="glossary-ema"></a>**EMA** | *Exponential Moving Average* — moyenne glissante qui donne plus de poids aux valeurs récentes | [Wikipedia — EMA](https://en.wikipedia.org/wiki/Exponential_smoothing) |
 | <a id="glossary-smoothstep"></a>**Smoothstep** | Fonction d'interpolation en S (transition douce entre 0 et 1) | [Khronos — smoothstep](https://registry.khronos.org/OpenGL-Refpages/gl4/html/smoothstep.xhtml) |
 | <a id="glossary-z-buffer---depth-buffer"></a>**Z-buffer / Depth Buffer** | Texture qui stocke la profondeur de chaque pixel pour gérer l'occlusion | [learnopengl.com — Depth Testing](https://learnopengl.com/Advanced-OpenGL/Depth-testing) |
+| <a id="glossary-z-clip"></a>**Z-clip (Near/Far)** | Plans de découpage proche et lointain de la caméra — définissent la plage de profondeur visible | [learnopengl.com — Coordinate Systems](https://learnopengl.com/Getting-started/Coordinate-Systems) |
 | <a id="glossary-stencil-buffer"></a>**Stencil Buffer** | Masque par pixel permettant de restreindre le rendu à certaines zones | [learnopengl.com — Stencil](https://learnopengl.com/Advanced-OpenGL/Stencil-testing) |
 
 ### Algorithmes de tri
@@ -1150,8 +1167,13 @@ graph TD
 | <a id="glossary-stbimage"></a>**stb_image** | Bibliothèque C mono-fichier pour charger des images (PNG, JPEG, HDR…) | [stb (GitHub)](https://github.com/nothings/stb) |
 | <a id="glossary-pas-fixe-fixed-timestep"></a>**Pas fixe (Fixed Timestep)** | Mise à jour de la physique à intervalle constant (ex: 60 Hz) indépendamment du framerate | [Fix Your Timestep! (Fiedler)](https://gafferongames.com/post/fix_your_timestep/) |
 | <a id="glossary-game-loop"></a>**Game Loop** | Boucle principale d'un jeu : lire les entrées → mettre à jour → dessiner → recommencer | [Game Programming Patterns — Game Loop](https://gameprogrammingpatterns.com/game-loop.html) |
+| <a id="glossary-frame-time"></a>**Frame Time** | Durée totale de rendu d'une image — 16.6ms à 60 FPS, tout dépassement provoque une saccade | [Wikipedia — Frame rate](https://en.wikipedia.org/wiki/Frame_rate) |
 | <a id="glossary-fireflies"></a>**Fireflies** | Pixels aberrants ultra-lumineux causés par des valeurs HDR extrêmes (artefact) | [Physically Based — Fireflies](https://pbr-book.org/4ed/Sampling_and_Reconstruction/Filtering_Image_Samples#FireflyPrevention) |
 | <a id="glossary-alpha-prmultipli"></a>**Alpha prémultiplié** | Convention où RGB est déjà multiplié par alpha — permet un blending correct | [Wikipedia — Premultiplied alpha](https://en.wikipedia.org/wiki/Alpha_compositing#Straight_versus_premultiplied) |
+| <a id="glossary-face-culling"></a>**Face Culling** | Optimisation GPU qui élimine les triangles dont la face arrière est visible — désactivé ici pour les billboards | [OpenGL Wiki — Face Culling](https://www.khronos.org/opengl/wiki/Face_Culling) |
+| <a id="glossary-include-guard"></a>**Include Guard** | Mécanisme de déduplication qui empêche un fichier d'être inclus plusieurs fois | [Wikipedia — Include guard](https://en.wikipedia.org/wiki/Include_guard) |
+| <a id="glossary-zero-init"></a>**Zero-init** | Initialisation à zéro d'une structure C via `{0}` — garantit un état déterministe au démarrage | [cppreference — Zero initialization](https://en.cppreference.com/w/c/language/struct_initialization) |
+| <a id="glossary-json"></a>**JSON** | *JavaScript Object Notation* — format de fichier texte léger pour stocker des données structurées (clé/valeur) | [json.org](https://www.json.org/json-fr.html) |
 
 ---
 
