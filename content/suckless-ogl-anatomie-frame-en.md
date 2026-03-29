@@ -12,18 +12,18 @@ JS: mermaid-init.js (top)
 
 # Anatomy of a Frame: The Complete Lifecycle of suckless-ogl
 
-*From `main()` to photons on screen — a full deep-dive into a modern OpenGL [PBR](#glossary-pbr) engine written in C.*
+*From `main()` to photons on screen — a full deep-dive into a modern OpenGL [PBR](#glossary-pbr "Physically-Based Rendering — lighting model that simulates real physics of light") engine written in C.*
 
 ![The final render of suckless-ogl — 100 PBR spheres lit by IBL]({static}/images/suckless-ogl/reference_image.png)
-*<center>The final render: 100 [metallic](#glossary-metallic) and [dielectric](#glossary-dielectric) spheres, lit by an [HDR](#glossary-hdr) environment map, with full post-processing.</center>*
+*<center>The final render: 100 [metallic](#glossary-metallic "PBR parameter: 0 = dielectric (plastic, wood), 1 = metal (gold, chrome)") and [dielectric](#glossary-dielectric "Non-metallic material (plastic, glass, wood) — reflects little at direct angles") spheres, lit by an [HDR](#glossary-hdr "High Dynamic Range — color values exceeding 1.0 (realistic light intensities)") environment map, with full post-processing.</center>*
 
 ---
 
 ## Introduction
 
-[**suckless-ogl**](https://github.com/yoyonel/suckless-ogl) is a minimalist, high-performance [PBR](#glossary-pbr) (Physically-Based Rendering) engine written in **C11** with **OpenGL 4.4 Core Profile**. It displays a grid of **100 spheres** with varied materials (metals, dielectrics, paints, organics…) lit by **Image-Based Lighting** ([IBL](#glossary-ibl)), with a full post-processing pipeline: [bloom](#glossary-bloom), depth of field, [motion blur](#glossary-motion-blur), [FXAA](#glossary-fxaa), tone mapping, [color grading](#glossary-color-grading)…
+[**suckless-ogl**](https://github.com/yoyonel/suckless-ogl) is a minimalist, high-performance [PBR](#glossary-pbr "Physically-Based Rendering — lighting model that simulates real physics of light") (Physically-Based Rendering) engine written in **C11** with **OpenGL 4.4 Core Profile**. It displays a grid of **100 spheres** with varied materials (metals, dielectrics, paints, organics…) lit by **Image-Based Lighting** ([IBL](#glossary-ibl "Image-Based Lighting — lighting extracted from a panoramic HDR environment image")), with a full post-processing pipeline: [bloom](#glossary-bloom "Glow halo around very bright areas (lens light diffusion)"), depth of field, [motion blur](#glossary-motion-blur "Per-pixel motion blur simulating a camera shutter"), [FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — fast post-process anti-aliasing on the final image"), tone mapping, [color grading](#glossary-color-grading "Creative color adjustments (saturation, contrast, gamma, hue)")…
 
-This article traces the **complete lifecycle** of the application: from the first byte allocated in `main()` to the moment the GPU presents the first fully-lit frame on screen. We'll walk through **every layer** — CPU memory, GPU resources, the X11/GLFW windowing handshake, OpenGL context creation, [shader](#glossary-shader) compilation, async texture loading, and the multi-pass rendering architecture that produces each frame.
+This article traces the **complete lifecycle** of the application: from the first byte allocated in `main()` to the moment the GPU presents the first fully-lit frame on screen. We'll walk through **every layer** — CPU memory, GPU resources, the X11/GLFW windowing handshake, OpenGL context creation, [shader](#glossary-shader "Program executed directly on the GPU (vertex, fragment, compute)") compilation, async texture loading, and the multi-pass rendering architecture that produces each frame.
 
 ### What We'll Cover
 
@@ -122,7 +122,7 @@ glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);     // Debug messages
 glfwWindowHint(GLFW_SAMPLES, DEFAULT_SAMPLES);           // MSAA = 1 (off)
 ```
 
-Behind the scenes, [GLFW](#glossary-glfw) performs a full **X11 handshake**:
+Behind the scenes, [GLFW](#glossary-glfw "C library for creating windows and handling keyboard/mouse input") performs a full **X11 handshake**:
 
 <pre class="mermaid">
 sequenceDiagram
@@ -154,7 +154,7 @@ sequenceDiagram
 gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 ```
 
-OpenGL is **not a library** in the traditional sense — it's a *specification*. The actual function addresses live inside the GPU driver ([Mesa](#glossary-mesa), NVIDIA, AMD). [GLAD](#glossary-glad) queries each address at runtime via `glXGetProcAddress` and populates a function pointer table. After this call, `glCreateShader`, `glDispatchCompute`, etc. become usable.
+OpenGL is **not a library** in the traditional sense — it's a *specification*. The actual function addresses live inside the GPU driver ([Mesa](#glossary-mesa "Open-source implementation of graphics APIs (OpenGL, Vulkan) on Linux"), NVIDIA, AMD). [GLAD](#glossary-glad "OpenGL loader generator — resolves GL function addresses at runtime") queries each address at runtime via `glXGetProcAddress` and populates a function pointer table. After this call, `glCreateShader`, `glDispatchCompute`, etc. become usable.
 
 ### 2.3 — OpenGL Debug Context
 
@@ -219,7 +219,7 @@ graph LR
 app->async_loader = async_loader_create(&app->tracy_mgr);
 ```
 
-A dedicated **POSIX thread** is spawned for background I/O. It sleeps on a [condition variable](#glossary-condition-variable) (`pthread_cond_wait`) until work is queued. This prevents disk reads from stalling the render loop.
+A dedicated **POSIX thread** is spawned for background I/O. It sleeps on a [condition variable](#glossary-condition-variable "Sync mechanism: a thread sleeps until another signals it") (`pthread_cond_wait`) until work is queued. This prevents disk reads from stalling the render loop.
 
 <pre class="mermaid">
 stateDiagram-v2
@@ -252,14 +252,14 @@ scene->specular_aa_enabled = 1;                 // Curvature-based AA
 
 ### 4.2 — Dummy Textures and BRDF LUT
 
-Two sentinel textures are created immediately — they serve as **fallbacks** whenever an [IBL](#glossary-ibl) texture isn't ready:
+Two sentinel textures are created immediately — they serve as **fallbacks** whenever an [IBL](#glossary-ibl "Image-Based Lighting — lighting extracted from a panoramic HDR environment image") texture isn't ready:
 
 ```c
 scene->dummy_black_tex = render_utils_create_color_texture(0.0, 0.0, 0.0, 0.0);  // 1×1 RGBA
 scene->dummy_white_tex = render_utils_create_color_texture(1.0, 1.0, 1.0, 1.0);  // 1×1 RGBA
 ```
 
-Then the **[BRDF LUT](#glossary-brdf-lut)** (Look-Up Table) is generated once via [compute shader](#glossary-compute-shader):
+Then the **[BRDF LUT](#glossary-brdf-lut "Pre-computed texture encoding the BRDF integral for all (angle, roughness) combinations")** (Look-Up Table) is generated once via [compute shader](#glossary-compute-shader "General-purpose GPU shader outside the rendering pipeline"):
 
 ```c
 scene->brdf_lut_tex = build_brdf_lut_map(512);
@@ -273,26 +273,26 @@ scene->brdf_lut_tex = build_brdf_lut_map(512);
 | Shader | `shaders/IBL/spbrdf.glsl` (compute) |
 | Work groups | 16 × 16 (512/32 per axis) |
 
-This texture maps `(NdotV, roughness)` → `(F0_scale, F0_bias)` and is used every frame by the [PBR](#glossary-pbr) [fragment shader](#glossary-fragment-shader) to avoid expensive real-time [BRDF](#glossary-brdf) integration.
+This texture maps `(NdotV, roughness)` → `(F0_scale, F0_bias)` and is used every frame by the [PBR](#glossary-pbr "Physically-Based Rendering — lighting model that simulates real physics of light") [fragment shader](#glossary-fragment-shader "Shader that computes the color of each on-screen pixel") to avoid expensive real-time [BRDF](#glossary-brdf "Bidirectional Reflectance Distribution Function — describes how light bounces off a surface") integration.
 
 ### 4.3 — Two Rendering Modes: Billboard Ray-Tracing vs. Icosphere Mesh
 
-The engine supports two sphere rendering strategies. The **default** is [billboard](#glossary-billboard) [ray-tracing](#glossary-ray-tracing).
+The engine supports two sphere rendering strategies. The **default** is [billboard](#glossary-billboard "Screen-facing quad used here as a ray-tracing surface") [ray-tracing](#glossary-ray-tracing "Technique that traces light rays to compute intersections with objects").
 
 #### Default: Billboard + Per-Pixel Ray-Tracing (billboard_mode = 1)
 
-Each sphere is rendered as a **single screen-aligned quad** (4 vertices, 2 triangles). The fragment [shader](#glossary-shader) performs an **analytical ray-sphere intersection** per pixel, producing mathematically perfect spheres.
+Each sphere is rendered as a **single screen-aligned quad** (4 vertices, 2 triangles). The fragment [shader](#glossary-shader "Program executed directly on the GPU (vertex, fragment, compute)") performs an **analytical ray-sphere intersection** per pixel, producing mathematically perfect spheres.
 
 ![Billboard AABB geometry — the projected quad encloses the sphere on screen]({static}/images/suckless-ogl/billboard_aabb_geometry.png)
-*<center>The [vertex shader](#glossary-vertex-shader) projects a tight [quad](#glossary-quad) around the sphere's screen-space bounding box via analytical tangent-line computation.</center>*
+*<center>The [vertex shader](#glossary-vertex-shader "Shader that processes each geometry vertex (position, projection)") projects a tight [quad](#glossary-quad "Rectangle made of 2 triangles — the basic 2D primitive") around the sphere's screen-space bounding box via analytical tangent-line computation.</center>*
 
 **Advantages**:
 
 - Pixel-perfect silhouettes (no polygon faceting, ever)
 - Correct per-pixel depth (`gl_FragDepth` written from the ray hit point)
 - Analytically smooth normals (normalized `hitPos − center`)
-- Edge anti-aliasing via smooth [discriminant](#glossary-discriminant) falloff
-- True alpha transparency (glass-like, with [back-to-front](#glossary-back-to-front) sorting)
+- Edge anti-aliasing via smooth [discriminant](#glossary-discriminant "Mathematical value (b²−c) determining whether a ray hits a sphere") falloff
+- True alpha transparency (glass-like, with [back-to-front](#glossary-back-to-front "Rendering order from farthest to nearest, required for correct transparency") sorting)
 
 <pre class="mermaid">
 graph LR
@@ -309,11 +309,11 @@ graph LR
     style D fill:#999,stroke:#333,stroke-width:1px
 </pre>
 
-> **💡 Why Billboard Ray-Tracing?** With 100 spheres, the billboard approach uses **100 × 4 = 400 vertices** total, versus **100 × 642 = 64,200 vertices** for level-3 icospheres. More importantly, the spheres are **mathematically perfect** at every zoom level — no [tessellation](#glossary-tessellation) artifacts.
+> **💡 Why Billboard Ray-Tracing?** With 100 spheres, the billboard approach uses **100 × 4 = 400 vertices** total, versus **100 × 642 = 64,200 vertices** for level-3 icospheres. More importantly, the spheres are **mathematically perfect** at every zoom level — no [tessellation](#glossary-tessellation "Subdividing geometry into finer triangles for more detail") artifacts.
 
 #### Fallback: Instanced Icosphere Mesh (billboard_mode = 0)
 
-The [icosphere](#glossary-icosphere) path generates a recursively subdivided icosahedron:
+The [icosphere](#glossary-icosphere "Sphere built by subdividing an icosahedron (20 faces) — more uniform than a UV sphere") path generates a recursively subdivided icosahedron:
 
 <pre class="mermaid">
 graph LR
@@ -374,7 +374,7 @@ typedef struct SphereInstance {
 
 ### 4.6 — VAO Layout (Billboard Mode)
 
-In billboard mode, the [VAO](#glossary-vao) binds a **4-vertex quad** and per-instance material data:
+In billboard mode, the [VAO](#glossary-vao "Vertex Array Object — describes the format of geometric data sent to the GPU") binds a **4-vertex quad** and per-instance material data:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -446,7 +446,7 @@ postprocess_init(&app->postprocess, &app->gpu_profiler, 1920, 1080);
 
 ### 5.1 — The Scene FBO (Multi-Render Target)
 
-The main offscreen framebuffer uses **[MRT](#glossary-mrt)** (Multiple Render Targets):
+The main offscreen framebuffer uses **[MRT](#glossary-mrt "Multiple Render Targets — write to several textures in a single render pass")** (Multiple Render Targets):
 
 | Attachment | Format | Size | Purpose |
 |-----------|--------|------|---------|
@@ -486,7 +486,7 @@ Each post-processing effect initializes its own resources:
 postprocess_enable(&app->postprocess, POSTFX_FXAA);  // Only FXAA
 ```
 
-On startup, only **[FXAA](#glossary-fxaa)** is active. Other effects are toggled at runtime via keyboard shortcuts.
+On startup, only **[FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — fast post-process anti-aliasing on the final image")** is active. Other effects are toggled at runtime via keyboard shortcuts.
 
 ---
 
@@ -547,7 +547,7 @@ stateDiagram-v2
 
 ## Chapter 7 — IBL Generation (Progressive, Multi-Frame)
 
-Once the [HDR](#glossary-hdr) texture is uploaded, the **IBL Coordinator** ([src/ibl_coordinator.c](https://github.com/yoyonel/suckless-ogl/blob/master/src/ibl_coordinator.c)) takes over. It computes three maps across multiple frames to avoid GPU stalls.
+Once the [HDR](#glossary-hdr "High Dynamic Range — color values exceeding 1.0 (realistic light intensities)") texture is uploaded, the **IBL Coordinator** ([src/ibl_coordinator.c](https://github.com/yoyonel/suckless-ogl/blob/master/src/ibl_coordinator.c)) takes over. It computes three maps across multiple frames to avoid GPU stalls.
 
 ### 7.1 — The Three IBL Maps
 
@@ -649,7 +649,7 @@ graph TD
 
 ### 8.1 — Deferred Resize
 
-Window resize events are **deferred** — the [GLFW](#glossary-glfw) callback only records the new dimensions. The actual [FBO](#glossary-fbo) recreation happens at the start of the next frame, outside the callback's limited context.
+Window resize events are **deferred** — the [GLFW](#glossary-glfw "C library for creating windows and handling keyboard/mouse input") callback only records the new dimensions. The actual [FBO](#glossary-fbo "Framebuffer Object — offscreen render surface (draw to it instead of the screen)") recreation happens at the start of the next frame, outside the callback's limited context.
 
 ### 8.2 — Camera Fixed-Timestep Integration
 
@@ -692,7 +692,7 @@ graph TD
 
 ### 9.2 — Pass 1: Skybox
 
-The [skybox](#glossary-skybox) is drawn **first**, with depth testing **disabled**. It uses a fullscreen [quad](#glossary-quad) trick:
+The [skybox](#glossary-skybox "Panoramic image displayed as scene background (sky/environment)") is drawn **first**, with depth testing **disabled**. It uses a fullscreen [quad](#glossary-quad "Rectangle made of 2 triangles — the basic 2D primitive") trick:
 
 ```glsl
 // background.vert — reconstruct world-space ray
@@ -712,7 +712,7 @@ VelocityOut = vec2(0.0);          // No motion for skybox
 
 ### 9.3 — Pass 2: Sphere Sorting (GPU Bitonic Sort)
 
-For transparent [billboard](#glossary-billboard) rendering, spheres must be drawn **back-to-front**:
+For transparent [billboard](#glossary-billboard "Screen-facing quad used here as a ray-tracing surface") rendering, spheres must be drawn **back-to-front**:
 
 | Mode | Where | Algorithm | Complexity |
 |------|-------|-----------|------------|
@@ -722,7 +722,7 @@ For transparent [billboard](#glossary-billboard) rendering, spheres must be draw
 
 ### 9.4 — Pass 3: PBR Spheres — Billboard Ray-Tracing
 
-This is the core rendering pass. **A single [draw call](#glossary-draw-call) renders all 100 spheres**:
+This is the core rendering pass. **A single [draw call](#glossary-draw-call "A CPU→GPU call requesting geometry rendering") renders all 100 spheres**:
 
 | Metric | Value |
 |--------|-------|
@@ -735,10 +735,10 @@ This is the core rendering pass. **A single [draw call](#glossary-draw-call) ren
 
 ### 9.5 — The Billboard Fragment Shader (Ray-Sphere Intersection)
 
-The [fragment shader](#glossary-fragment-shader) (`pbr_ibl_billboard.frag`) is where the real magic happens. Instead of shading a rasterized [mesh](#glossary-mesh), it **analytically intersects a ray with a perfect sphere**:
+The [fragment shader](#glossary-fragment-shader "Shader that computes the color of each on-screen pixel") (`pbr_ibl_billboard.frag`) is where the real magic happens. Instead of shading a rasterized [mesh](#glossary-mesh "Collection of triangles forming a 3D object"), it **analytically intersects a ray with a perfect sphere**:
 
 ![Ray-sphere intersection — the geometric principle]({static}/images/suckless-ogl/sphere_intersection.jpg)
-*<center>Analytical ray-sphere intersection: the [discriminant](#glossary-discriminant) determines whether the pixel hits the sphere.</center>*
+*<center>Analytical ray-sphere intersection: the [discriminant](#glossary-discriminant "Mathematical value (b²−c) determining whether a ray hits a sphere") determines whether the pixel hits the sphere.</center>*
 
 ```glsl
 // Analytical ray-sphere intersection
@@ -775,7 +775,7 @@ graph TD
 #### Analytical Edge Anti-Aliasing
 
 ![Analytical anti-aliasing of spheres — smoothstep on the discriminant]({static}/images/suckless-ogl/sphere_analytic_aa.jpg)
-*<center>Analytical anti-aliasing uses the discriminant as a distance-to-edge metric — no [MSAA](#glossary-msaa) needed for smooth edges.</center>*
+*<center>Analytical anti-aliasing uses the discriminant as a distance-to-edge metric — no [MSAA](#glossary-msaa "Multisample Anti-Aliasing — geometric anti-aliasing (expensive, avoided here)") needed for smooth edges.</center>*
 
 ```glsl
 float pixelSizeWorld = (2.0 * clipW) / (proj[1][1] * screenHeight);
@@ -784,18 +784,18 @@ FragColor = vec4(color * edgeFactor, edgeFactor);  // premultiplied alpha
 ```
 
 ![Detail of perfect sphere anti-aliasing]({static}/images/suckless-ogl/sphere_perfect_aa_detail.jpg)
-*<center>Close-up detail: sphere edges are perfectly smooth thanks to analytical [ray-tracing](#glossary-ray-tracing).</center>*
+*<center>Close-up detail: sphere edges are perfectly smooth thanks to analytical [ray-tracing](#glossary-ray-tracing "Technique that traces light rays to compute intersections with objects").</center>*
 
 #### Billboard Projection
 
 ![Sphere AABB projection optimization]({static}/images/suckless-ogl/sphere_aabb_optimization_projective.png)
-*<center>The [vertex shader](#glossary-vertex-shader) computes a tight screen-space quad via analytical tangent-line projection, handling 3 cases: camera outside, inside, or behind the sphere.</center>*
+*<center>The [vertex shader](#glossary-vertex-shader "Shader that processes each geometry vertex (position, projection)") computes a tight screen-space quad via analytical tangent-line projection, handling 3 cases: camera outside, inside, or behind the sphere.</center>*
 
 ---
 
 ## Chapter 10 — Post-Processing Pipeline
 
-After the 3D scene is rendered into the [MRT](#glossary-mrt) [FBO](#glossary-fbo), `postprocess_end()` applies up to **8 effects** in a carefully ordered pipeline.
+After the 3D scene is rendered into the [MRT](#glossary-mrt "Multiple Render Targets — write to several textures in a single render pass") [FBO](#glossary-fbo "Framebuffer Object — offscreen render surface (draw to it instead of the screen)"), `postprocess_end()` applies up to **8 effects** in a carefully ordered pipeline.
 
 ### 10.1 — The 7-Stage Pipeline
 
@@ -825,15 +825,15 @@ Here is the **front view** render with different effects enabled individually �
 
 #### No post-processing (raw)
 ![Raw render without any post-processing]({static}/images/suckless-ogl/ref_front_subtle_none.png)
-*<center>Raw image from the [PBR](#glossary-pbr) renderer — no post-processing applied.</center>*
+*<center>Raw image from the [PBR](#glossary-pbr "Physically-Based Rendering — lighting model that simulates real physics of light") renderer — no post-processing applied.</center>*
 
 #### FXAA (fast anti-aliasing)
 ![Render with FXAA enabled]({static}/images/suckless-ogl/ref_front_subtle_fxaa.png)
-*<center>[FXAA](#glossary-fxaa) (Fast Approximate Anti-Aliasing) — smooths edges without the cost of [MSAA](#glossary-msaa).</center>*
+*<center>[FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — fast post-process anti-aliasing on the final image") (Fast Approximate Anti-Aliasing) — smooths edges without the cost of [MSAA](#glossary-msaa "Multisample Anti-Aliasing — geometric anti-aliasing (expensive, avoided here)").</center>*
 
 #### Bloom
 ![Render with Bloom enabled]({static}/images/suckless-ogl/ref_front_subtle_bloom.png)
-*<center>[Bloom](#glossary-bloom) — bright areas bleed outward, simulating lens light diffusion.</center>*
+*<center>[Bloom](#glossary-bloom "Glow halo around very bright areas (lens light diffusion)") — bright areas bleed outward, simulating lens light diffusion.</center>*
 
 #### Depth of Field
 ![Render with Depth of Field enabled]({static}/images/suckless-ogl/ref_front_subtle_dof.png)
@@ -841,19 +841,19 @@ Here is the **front view** render with different effects enabled individually �
 
 #### Auto-Exposure
 ![Render with Auto-Exposure enabled]({static}/images/suckless-ogl/ref_front_subtle_auto_exposure.png)
-*<center>[Auto-exposure](#glossary-auto-exposure) — the engine adapts exposure like the human eye adjusting to brightness.</center>*
+*<center>[Auto-exposure](#glossary-auto-exposure "Automatic scene brightness adaptation (simulates the eye's iris)") — the engine adapts exposure like the human eye adjusting to brightness.</center>*
 
 #### Motion Blur
 ![Render with Motion Blur enabled]({static}/images/suckless-ogl/ref_front_subtle_motion_blur.png)
-*<center>Per-pixel [motion blur](#glossary-motion-blur) — uses velocity vectors to simulate cinematic motion blur.</center>*
+*<center>Per-pixel [motion blur](#glossary-motion-blur "Per-pixel motion blur simulating a camera shutter") — uses velocity vectors to simulate cinematic motion blur.</center>*
 
 #### Sony A7S III Cinematic Profile
 ![Render with Sony A7S III profile]({static}/images/suckless-ogl/ref_front_sony_a7siii.png)
-*<center>Full Sony A7S III photographic profile — [color grading](#glossary-color-grading), white balance, exposure, and [3D LUT](#glossary-3d-lut) combined for a cinematic look.</center>*
+*<center>Full Sony A7S III photographic profile — [color grading](#glossary-color-grading "Creative color adjustments (saturation, contrast, gamma, hue)"), white balance, exposure, and [3D LUT](#glossary-3d-lut "3D color lookup table for a cinematic &quot;look&quot; (`.cube` file)") combined for a cinematic look.</center>*
 
 ### 10.3 — Shader Optimization via Conditional Compilation
 
-The post-process [fragment shader](#glossary-fragment-shader) uses **compile-time #defines** to eliminate branches:
+The post-process [fragment shader](#glossary-fragment-shader "Shader that computes the color of each on-screen pixel") uses **compile-time #defines** to eliminate branches:
 
 ```glsl
 #ifdef OPT_ENABLE_BLOOM
@@ -865,12 +865,12 @@ The post-process [fragment shader](#glossary-fragment-shader) uses **compile-tim
 #endif
 ```
 
-A 32-entry **LRU cache** stores compiled [shader](#glossary-shader) variants for different effect flag combinations. Switching effects triggers lazy recompilation only for new combinations.
+A 32-entry **LRU cache** stores compiled [shader](#glossary-shader "Program executed directly on the GPU (vertex, fragment, compute)") variants for different effect flag combinations. Switching effects triggers lazy recompilation only for new combinations.
 
 ### 10.4 — Tonemapping Curves
 
 ![Tonemapping curves comparison]({static}/images/suckless-ogl/tonemapping_curves.png)
-*<center>Comparison of available [tonemapping](#glossary-tonemapping) curves — the transformation from linear [HDR](#glossary-hdr) to displayable LDR.</center>*
+*<center>Comparison of available [tonemapping](#glossary-tonemapping "Conversion of HDR colors (unbounded) to displayable LDR (0–255)") curves — the transformation from linear [HDR](#glossary-hdr "High Dynamic Range — color values exceeding 1.0 (realistic light intensities)") to displayable LDR.</center>*
 
 ### 10.5 — Exposure Adaptation
 
@@ -915,7 +915,7 @@ Let's trace what actually appears on screen during the first seconds:
 
 ## Chapter 12 — GPU Memory Budget
 
-Here's an estimate of [VRAM](#glossary-vram) consumption at steady state:
+Here's an estimate of [VRAM](#glossary-vram "Dedicated GPU memory — where textures and buffers reside") consumption at steady state:
 
 ### Textures
 
@@ -952,7 +952,7 @@ Here's an estimate of [VRAM](#glossary-vram) consumption at steady state:
 | Shaders (compiled) | ~2 MB |
 | **Total** | **~101 MB VRAM** |
 
-> **💡 Dominant Cost**: The [HDR](#glossary-hdr) environment map + [bloom](#glossary-bloom) chain + scene FBOs dominate VRAM usage. The geometry itself (100 [billboard](#glossary-billboard) quads × 4 vertices in default mode) is negligible — the real sphere computation happens in the [fragment shader](#glossary-fragment-shader) via [ray-tracing](#glossary-ray-tracing).
+> **💡 Dominant Cost**: The [HDR](#glossary-hdr "High Dynamic Range — color values exceeding 1.0 (realistic light intensities)") environment map + [bloom](#glossary-bloom "Glow halo around very bright areas (lens light diffusion)") chain + scene FBOs dominate VRAM usage. The geometry itself (100 [billboard](#glossary-billboard "Screen-facing quad used here as a ray-tracing surface") quads × 4 vertices in default mode) is negligible — the real sphere computation happens in the [fragment shader](#glossary-fragment-shader "Shader that computes the color of each on-screen pixel") via [ray-tracing](#glossary-ray-tracing "Technique that traces light rays to compute intersections with objects").
 
 ---
 
