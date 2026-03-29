@@ -1,0 +1,6 @@
+[submodule "themes/blueidea-custom"]
+	path = themes/blueidea-custom
+	url = git@github.com:yoyonel/pelican-blueidea.git
+[submodule "themes/Flex"]
+	path = themes/Flex
+	url = https://github.com/alexandrevicenzi/Flex.git
