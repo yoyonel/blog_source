@@ -644,31 +644,31 @@ Pour éviter les pics de [frame time](#glossary-frame-time "Durée totale de ren
 <pre class="mermaid">
 gantt
     title Timeline de génération IBL progressive
-    dateFormat X
+    dateFormat x
     axisFormat Frame %s
 
     section Luminance
-    Luminance Pass 1      :lum1, 0, 1
-    Luminance Wait (fence) :lum2, 1, 2
-    Luminance Readback     :lum3, 2, 3
+    Luminance Pass 1       :lum1, 0, 1000
+    Luminance Wait (fence) :lum2, 1000, 2000
+    Luminance Readback     :lum3, 2000, 3000
 
     section Specular Mip 0
-    Slice 1/24            :s1, 3, 4
-    Slice 2/24            :s2, 4, 5
-    Slice ...             :s3, 5, 6
-    Slice 24/24           :s4, 6, 7
+    Slice 1/24             :s1, 3000, 4000
+    Slice 2/24             :s2, 4000, 5000
+    Slice ...              :s3, 5000, 6000
+    Slice 24/24            :s4, 6000, 7000
 
     section Specular Mip 1
-    Slices 1-8            :m1, 7, 9
+    Slices 1-8             :m1, 7000, 9000
 
     section Specular Mips 2-4
-    Dispatch groupé       :m3, 9, 10
+    Dispatch groupé        :m3, 9000, 10000
 
     section Irradiance
-    Slices 1-12           :i1, 10, 12
+    Slices 1-12            :i1, 10000, 12000
 
     section Terminé
-    IBL Complet → Fade In :done, 12, 13
+    IBL Complet → Fade In  :ibl_done, 12000, 13000
 </pre>
 
 ### 7.3 — Machine à états IBL

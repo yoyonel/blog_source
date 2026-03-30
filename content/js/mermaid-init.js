@@ -100,7 +100,26 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Center scroll position of each mermaid container after render
+    // and move all gantt task labels to the right of their bars
     mermaid.run().then(function () {
+      // Gantt: force all task labels to appear right of bars
+      document.querySelectorAll("pre.mermaid svg").forEach(function (svg) {
+        var rects = svg.querySelectorAll("rect.task");
+        var texts = svg.querySelectorAll(
+          "text.taskText, text.taskTextOutsideRight, text.taskTextOutsideLeft"
+        );
+        if (rects.length === 0 || rects.length !== texts.length) return;
+        for (var i = 0; i < texts.length; i++) {
+          var r = rects[i];
+          var t = texts[i];
+          var rx = parseFloat(r.getAttribute("x"));
+          var rw = parseFloat(r.getAttribute("width"));
+          t.setAttribute("x", rx + rw + 5);
+          t.style.textAnchor = "start";
+          t.setAttribute("class", "taskTextOutsideRight");
+        }
+      });
+
       document.querySelectorAll("pre.mermaid").forEach(function (container) {
         var overflow = container.scrollWidth - container.clientWidth;
         if (overflow > 0) {
