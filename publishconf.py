@@ -2,7 +2,7 @@ import os
 import sys
 
 sys.path.append(os.curdir)
-from pelicanconf import *  # noqa: F401, F403
+from pelicanconf import *
 
 SITEURL = os.environ.get("PELICAN_SITEURL", "https://yoyonel.github.io")
 RELATIVE_URLS = False

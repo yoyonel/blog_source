@@ -28,9 +28,7 @@ LINKS = (
 )
 
 # Social
-SOCIAL = (
-    ("github", "https://github.com/yoyonel"),
-)
+SOCIAL = (("github", "https://github.com/yoyonel"),)
 
 DEFAULT_PAGINATION = 10
 
@@ -73,6 +71,17 @@ SITELOGO = "/images/avatar.gif"
 # Dark mode auto-detect (follows OS preference)
 THEME_COLOR_AUTO_DETECT_BROWSER_PREFERENCE = True
 THEME_COLOR_ENABLE_USER_OVERRIDE = True
+
+# Markdown extensions
+MARKDOWN = {
+    "extension_configs": {
+        "markdown.extensions.codehilite": {"css_class": "highlight"},
+        "markdown.extensions.extra": {},
+        "markdown.extensions.meta": {},
+        "markdown.extensions.toc": {"permalink": False},
+    },
+    "output_format": "html5",
+}
 
 # Code highlighting
 PYGMENTS_STYLE = "github"

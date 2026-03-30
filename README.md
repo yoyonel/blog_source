@@ -26,6 +26,9 @@ just dev        # Serveur local avec live-reload → http://localhost:8000
 | `just deploy` | Publie sur GitHub Pages |
 | `just clean` | Supprime le dossier `output/` |
 | `just new-post "Mon Titre"` | Crée un nouvel article |
+| `just lint` | Vérifie le code avec Ruff |
+| `just format-check` | Vérifie le formatage avec Ruff |
+| `just fix` | Auto-fix lint + formatage |
 
 ## Structure du projet
 
@@ -40,9 +43,24 @@ just dev        # Serveur local avec live-reload → http://localhost:8000
 ├── themes/
 │   └── Flex/            # Thème (git submodule)
 ├── Justfile             # Point d'entrée unique
+├── .pre-commit-config.yaml  # Hooks pre-commit (Ruff)
 ├── pelicanconf.py       # Configuration développement
 ├── publishconf.py       # Configuration production
-└── pyproject.toml       # Dépendances Python
+└── pyproject.toml       # Dépendances Python + config Ruff
+```
+
+## Linting & Formatage
+
+Le projet utilise [Ruff](https://docs.astral.sh/ruff/) pour le linting et le formatage du code Python.
+
+- **Pre-commit** : les hooks Ruff s'exécutent automatiquement à chaque `git commit` (installés via `just setup`)
+- **CI** : le workflow `lint.yml` vérifie lint + format sur chaque push et PR
+- **Config** : voir `[tool.ruff]` dans `pyproject.toml`
+
+```bash
+just lint          # Vérifier le linting
+just format-check  # Vérifier le formatage
+just fix           # Auto-corriger lint + format
 ```
 
 ## CI/CD
@@ -53,6 +71,7 @@ Deux workflows GitHub Actions :
 |---|---|---|
 | `deploy.yml` | Push sur `master`/`main` | Build + déploie sur GitHub Pages |
 | `preview.yml` | Pull Request | Build + déploie une preview sur surge.sh |
+| `lint.yml` | Push + Pull Request | Vérifie lint et formatage avec Ruff |
 
 ### Secrets GitHub requis
 

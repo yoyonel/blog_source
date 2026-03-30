@@ -14,8 +14,22 @@ default:
 setup:
     uv sync
     git submodule update --init --recursive
+    uv run pre-commit install
     @git remote get-url deploy 2>/dev/null || git remote add deploy {{ DEPLOY_REMOTE }}
     @echo "✅ Setup complete. Run 'just dev' to start the dev server."
+
+# Run ruff linter
+lint:
+    uv run ruff check .
+
+# Run ruff formatter check
+format-check:
+    uv run ruff format --check .
+
+# Auto-fix lint + format
+fix:
+    uv run ruff check --fix .
+    uv run ruff format .
 
 # Start dev server with live-reload (default port 8000)
 dev port="8000":
