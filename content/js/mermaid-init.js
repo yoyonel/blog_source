@@ -5,11 +5,10 @@
 // Style: Hand-drawn sketch — always rendered in LIGHT mode for readability.
 // Works in Chrome & Brave, light & dark OS themes.
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
   var script = document.createElement("script");
-  script.src =
-    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
-  script.onload = function () {
+  script.src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
+  script.onload = () => {
     mermaid.initialize({
       startOnLoad: true,
       look: "handDrawn",
@@ -101,26 +100,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Center scroll position of each mermaid container after render
     // and move all gantt task labels to the right of their bars
-    mermaid.run().then(function () {
+    mermaid.run().then(() => {
       // Gantt: force all task labels to appear right of bars
-      document.querySelectorAll("pre.mermaid svg").forEach(function (svg) {
+      document.querySelectorAll("pre.mermaid svg").forEach((svg) => {
         var rects = svg.querySelectorAll("rect.task");
         var texts = svg.querySelectorAll(
-          "text.taskText, text.taskTextOutsideRight, text.taskTextOutsideLeft"
+          "text.taskText, text.taskTextOutsideRight, text.taskTextOutsideLeft",
         );
         if (rects.length === 0 || rects.length !== texts.length) return;
-        for (var i = 0; i < texts.length; i++) {
-          var r = rects[i];
-          var t = texts[i];
-          var rx = parseFloat(r.getAttribute("x"));
-          var rw = parseFloat(r.getAttribute("width"));
+        for (let i = 0; i < texts.length; i++) {
+          const r = rects[i];
+          const t = texts[i];
+          const rx = parseFloat(r.getAttribute("x"));
+          const rw = parseFloat(r.getAttribute("width"));
           t.setAttribute("x", rx + rw + 5);
           t.style.textAnchor = "start";
           t.setAttribute("class", "taskTextOutsideRight");
         }
       });
 
-      document.querySelectorAll("pre.mermaid").forEach(function (container) {
+      document.querySelectorAll("pre.mermaid").forEach((container) => {
         var overflow = container.scrollWidth - container.clientWidth;
         if (overflow > 0) {
           container.scrollLeft = overflow / 2;

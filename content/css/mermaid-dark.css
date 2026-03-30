@@ -93,7 +93,7 @@ pre.mermaid svg {
 
 /* Flex theme dark class override */
 .dark pre.mermaid,
-[data-theme="dark"] pre.mermaid {
+[data-theme='dark'] pre.mermaid {
   color-scheme: light only !important;
   background: #ffffff !important;
   border-color: #d0d0d0 !important;
@@ -103,8 +103,8 @@ pre.mermaid svg {
 
 .dark pre.mermaid svg,
 .dark pre.mermaid svg *,
-[data-theme="dark"] pre.mermaid svg,
-[data-theme="dark"] pre.mermaid svg * {
+[data-theme='dark'] pre.mermaid svg,
+[data-theme='dark'] pre.mermaid svg * {
   filter: none !important;
   -webkit-filter: none !important;
 }

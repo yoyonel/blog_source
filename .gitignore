@@ -8,6 +8,10 @@ __pycache__/
 .venv/
 uv.lock
 
+# Dependencies (npm — Biome)
+node_modules/
+package-lock.json
+
 # Legacy (to remove after cleanup)
 HOWTO
 deploy/

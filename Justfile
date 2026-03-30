@@ -13,6 +13,7 @@ default:
 # Install dependencies and setup theme
 setup:
     uv sync
+    npm install
     git submodule update --init --recursive
     uv run pre-commit install
     @git remote get-url deploy 2>/dev/null || git remote add deploy {{ DEPLOY_REMOTE }}
@@ -21,15 +22,18 @@ setup:
 # Run ruff linter
 lint:
     uv run ruff check .
+    npx @biomejs/biome check .
 
 # Run ruff formatter check
 format-check:
     uv run ruff format --check .
+    npx @biomejs/biome format .
 
 # Auto-fix lint + format
 fix:
     uv run ruff check --fix .
     uv run ruff format .
+    npx @biomejs/biome check --fix .
 
 # Start dev server with live-reload (default port 8000)
 dev port="8000":
