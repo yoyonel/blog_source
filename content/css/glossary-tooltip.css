@@ -1,17 +1,22 @@
+/* ===== Google Font import for hand-drawn look ===== */
+@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap');
+
 /* Glossary tooltip — hand-drawn sketch style
    Transforms native title="" tooltips on glossary links into
    stylized popups that match the mermaid handDrawn aesthetic. */
 
 /* ===== Glossary link styling ===== */
-a[href^="#glossary-"] {
+a[href^='#glossary-'] {
   color: #c2185b;
   text-decoration: none;
   border-bottom: 1.5px dashed #c2185b;
   cursor: help;
-  transition: color 0.2s, border-color 0.2s;
+  transition:
+    color 0.2s,
+    border-color 0.2s;
 }
 
-a[href^="#glossary-"]:hover {
+a[href^='#glossary-']:hover {
   color: #e91e63;
   border-bottom-color: #e91e63;
 }
@@ -25,9 +30,9 @@ a[href^="#glossary-"]:hover {
   /* Hand-drawn feel: warm off-white, slightly irregular border */
   background: #fffef7;
   border: 2px solid #c2185b;
-  border-radius: 4px 12px 4px 12px;  /* asymmetric = sketchy */
+  border-radius: 4px 12px 4px 12px; /* asymmetric = sketchy */
   box-shadow:
-    3px 3px 0 rgba(194, 24, 91, 0.10),
+    3px 3px 0 rgba(194, 24, 91, 0.1),
     0 4px 16px rgba(0, 0, 0, 0.12);
   /* Pencil-style font */
   font-family: 'Architects Daughter', 'Segoe Print', 'Comic Neue', cursive, sans-serif;
@@ -37,7 +42,9 @@ a[href^="#glossary-"]:hover {
   pointer-events: none;
   opacity: 0;
   transform: translateY(6px) rotate(-0.3deg);
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
   /* Subtle paper texture edge */
   outline: 1px solid rgba(0, 0, 0, 0.04);
   outline-offset: -1px;
@@ -114,12 +121,12 @@ a[href^="#glossary-"]:hover {
 
 /* ===== Dark mode adjustments ===== */
 @media (prefers-color-scheme: dark) {
-  a[href^="#glossary-"] {
+  a[href^='#glossary-'] {
     color: #f48fb1;
     border-bottom-color: #f48fb1;
   }
 
-  a[href^="#glossary-"]:hover {
+  a[href^='#glossary-']:hover {
     color: #f8bbd0;
     border-bottom-color: #f8bbd0;
   }
@@ -156,14 +163,14 @@ a[href^="#glossary-"]:hover {
 }
 
 /* ===== Flex theme dark class ===== */
-.dark a[href^="#glossary-"],
-[data-theme="dark"] a[href^="#glossary-"] {
+.dark a[href^='#glossary-'],
+[data-theme='dark'] a[href^='#glossary-'] {
   color: #f48fb1;
   border-bottom-color: #f48fb1;
 }
 
 .dark .glossary-tooltip,
-[data-theme="dark"] .glossary-tooltip {
+[data-theme='dark'] .glossary-tooltip {
   background: #2a2520;
   color: #e8e0d4;
   border-color: #f48fb1;
@@ -173,29 +180,26 @@ a[href^="#glossary-"]:hover {
 }
 
 .dark .glossary-tooltip .tooltip-term,
-[data-theme="dark"] .glossary-tooltip .tooltip-term {
+[data-theme='dark'] .glossary-tooltip .tooltip-term {
   color: #f48fb1;
   border-bottom-color: rgba(244, 143, 177, 0.3);
 }
 
 .dark .glossary-tooltip .tooltip-desc,
-[data-theme="dark"] .glossary-tooltip .tooltip-desc {
+[data-theme='dark'] .glossary-tooltip .tooltip-desc {
   color: #d4cab8;
 }
 
 .dark .glossary-tooltip::before,
 .dark .glossary-tooltip::after,
-[data-theme="dark"] .glossary-tooltip::before,
-[data-theme="dark"] .glossary-tooltip::after {
+[data-theme='dark'] .glossary-tooltip::before,
+[data-theme='dark'] .glossary-tooltip::after {
   border-color: #f48fb1;
 }
 
 .dark .glossary-tooltip .tooltip-arrow,
-[data-theme="dark"] .glossary-tooltip .tooltip-arrow {
+[data-theme='dark'] .glossary-tooltip .tooltip-arrow {
   background: #2a2520;
   border-left-color: #f48fb1;
   border-top-color: #f48fb1;
 }
-
-/* ===== Google Font import for hand-drawn look ===== */
-@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap');

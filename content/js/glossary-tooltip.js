@@ -4,9 +4,7 @@
 // Loaded after DOM content. Creates a single tooltip element and
 // wires mouseenter/mouseleave/focus/blur on glossary anchors.
 
-(function () {
-  "use strict";
-
+(() => {
   // --- Create tooltip element ---
   var tip = document.createElement("div");
   tip.className = "glossary-tooltip";
@@ -50,8 +48,8 @@
       arrowBottom = true;
     }
 
-    tip.style.left = left + "px";
-    tip.style.top = top + "px";
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
 
     if (arrowBottom) {
       tip.classList.add("arrow-bottom");
@@ -63,7 +61,7 @@
     var arrow = tip.querySelector(".tooltip-arrow");
     var anchorCenter = rect.left + rect.width / 2 - left;
     anchorCenter = Math.max(16, Math.min(anchorCenter, tipW - 16));
-    arrow.style.left = anchorCenter + "px";
+    arrow.style.left = `${anchorCenter}px`;
   }
 
   // --- Show ---
@@ -89,7 +87,7 @@
     positionTooltip(anchor);
 
     // Trigger transition
-    requestAnimationFrame(function () {
+    requestAnimationFrame(() => {
       tip.classList.add("visible");
       tip.style.opacity = "";
     });
@@ -97,10 +95,10 @@
 
   // --- Hide ---
   function hideTooltip() {
-    hideTimer = setTimeout(function () {
+    hideTimer = setTimeout(() => {
       tip.classList.remove("visible");
       // After transition, move off-screen
-      setTimeout(function () {
+      setTimeout(() => {
         if (!tip.classList.contains("visible")) {
           tip.style.display = "none";
         }
@@ -110,16 +108,20 @@
 
   // --- Wire up all glossary anchors ---
   function initAnchors() {
-    var anchors = document.querySelectorAll('a[href^="#glossary-"][title]');
-    for (var i = 0; i < anchors.length; i++) {
-      var a = anchors[i];
+    const anchors = document.querySelectorAll('a[href^="#glossary-"][title]');
+    for (let i = 0; i < anchors.length; i++) {
+      const a = anchors[i];
       // Move title to data attribute to suppress native tooltip
       a.setAttribute("data-glossary-title", a.getAttribute("title"));
       a.removeAttribute("title");
 
-      a.addEventListener("mouseenter", function () { showTooltip(this); });
+      a.addEventListener("mouseenter", function () {
+        showTooltip(this);
+      });
       a.addEventListener("mouseleave", hideTooltip);
-      a.addEventListener("focus", function () { showTooltip(this); });
+      a.addEventListener("focus", function () {
+        showTooltip(this);
+      });
       a.addEventListener("blur", hideTooltip);
     }
   }

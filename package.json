@@ -1,0 +1,8 @@
+{
+  "name": "blog_source",
+  "private": true,
+  "description": "Blog technique — Biome lint/format pour CSS & JS",
+  "devDependencies": {
+    "@biomejs/biome": "2.4.9"
+  }
+}
