@@ -74,6 +74,17 @@ SITELOGO = "/images/avatar.gif"
 THEME_COLOR_AUTO_DETECT_BROWSER_PREFERENCE = True
 THEME_COLOR_ENABLE_USER_OVERRIDE = True
 
+# Markdown extensions
+MARKDOWN = {
+    "extension_configs": {
+        "markdown.extensions.codehilite": {"css_class": "highlight"},
+        "markdown.extensions.extra": {},
+        "markdown.extensions.meta": {},
+        "markdown.extensions.toc": {"permalink": False},
+    },
+    "output_format": "html5",
+}
+
 # Code highlighting
 PYGMENTS_STYLE = "github"
 PYGMENTS_STYLE_DARK = "monokai"

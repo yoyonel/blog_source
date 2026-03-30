@@ -98,6 +98,16 @@ document.addEventListener("DOMContentLoaded", function () {
         altBackground: "#fafafa",
       },
     });
+
+    // Center scroll position of each mermaid container after render
+    mermaid.run().then(function () {
+      document.querySelectorAll("pre.mermaid").forEach(function (container) {
+        var overflow = container.scrollWidth - container.clientWidth;
+        if (overflow > 0) {
+          container.scrollLeft = overflow / 2;
+        }
+      });
+    });
   };
   document.head.appendChild(script);
 });

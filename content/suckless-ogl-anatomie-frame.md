@@ -29,18 +29,18 @@ Cet article retrace le **cycle de vie complet** de l'application : depuis le pre
 
 | Chapitre | Sujet |
 |----------|-------|
-| 1 | Le point d'entrée (`main()`) |
-| 2 | Ouverture de fenêtre (GLFW + X11 + OpenGL) |
-| 3 | Initialisation CPU (caméra, threads, buffers) |
-| 4 | Initialisation de la scène (GPU) |
-| 5 | Pipeline de post-processing |
-| 6 | Chargement HDR asynchrone |
-| 7 | Génération IBL progressive |
-| 8 | La boucle principale |
-| 9 | Le rendu d'une frame |
-| 10 | Post-processing en détail |
-| 11 | La première frame visible |
-| 12 | Budget mémoire GPU |
+| [1](#chapitre-1-le-point-dentree) | Le point d'entrée (`main()`) |
+| [2](#chapitre-2-ouvrir-une-fenetre-glfw-x11-opengl) | Ouverture de fenêtre (GLFW + X11 + OpenGL) |
+| [3](#chapitre-3-initialisation-cote-cpu) | Initialisation CPU (caméra, threads, buffers) |
+| [4](#chapitre-4-initialisation-de-la-scene-le-gpu-se-reveille) | Initialisation de la scène (GPU) |
+| [5](#chapitre-5-setup-du-pipeline-de-post-processing) | Pipeline de post-processing |
+| [6](#chapitre-6-le-premier-chargement-hdr) | Chargement HDR asynchrone |
+| [7](#chapitre-7-generation-ibl-progressive-multi-frame) | Génération IBL progressive |
+| [8](#chapitre-8-la-boucle-principale) | La boucle principale |
+| [9](#chapitre-9-le-rendu-dune-frame) | Le rendu d'une frame |
+| [10](#chapitre-10-pipeline-de-post-processing) | Post-processing en détail |
+| [11](#chapitre-11-la-premiere-frame-visible) | La première frame visible |
+| [12](#chapitre-12-budget-memoire-gpu) | Budget mémoire GPU |
 
 ---
 
@@ -791,8 +791,8 @@ Pour le rendu transparent par [billboard](#glossary-billboard "Quad (rectangle) 
 | Mode | Où | Algorithme | Complexité |
 |------|-----|-----------|------------|
 | `CPU_QSORT` | CPU | `qsort()` (stdlib) | O(n·log n) moy |
-| `CPU_RADIX` | CPU | Tri radix | O(n·k) |
-| `GPU_BITONIC` ★ | GPU | Tri bitonique (compute) | O(n·log²n) |
+| `CPU_RADIX` | CPU | [Tri radix](#glossary-radix-sort "Tri par chiffres successifs — O(n·k), efficace sur CPU pour des clés entières") | O(n·k) |
+| `GPU_BITONIC` ★ | GPU | [Tri bitonique](#glossary-bitonic-sort "Tri parallèle adapté au GPU — compare et échange par paires") (compute) | O(n·log²n) |
 
 ### 9.4 — Pass 3 : Sphères PBR — Billboard Ray-Tracing
 
