@@ -29,18 +29,18 @@ This article traces the **complete lifecycle** of the application: from the firs
 
 | Chapter | Topic |
 |---------|-------|
-| [1](#chapter-1-the-entry-point) | The entry point (`main()`) |
-| [2](#chapter-2-opening-a-window-glfw-x11-opengl) | Opening a window (GLFW + X11 + OpenGL) |
-| [3](#chapter-3-cpu-side-initialization) | CPU-side initialization (camera, threads, buffers) |
-| [4](#chapter-4-scene-initialization-the-gpu-wakes-up) | Scene initialization (GPU) |
-| [5](#chapter-5-post-processing-pipeline-setup) | Post-processing pipeline |
-| [6](#chapter-6-the-first-hdr-environment-load) | Async HDR environment loading |
-| [7](#chapter-7-ibl-generation-progressive-multi-frame) | Progressive IBL generation |
-| [8](#chapter-8-the-main-loop) | The main loop |
-| [9](#chapter-9-rendering-a-frame) | Rendering a frame |
-| [10](#chapter-10-post-processing-pipeline) | Post-processing in detail |
-| [11](#chapter-11-the-first-visible-frame) | The first visible frame |
-| [12](#chapter-12-gpu-memory-budget) | GPU memory budget |
+| [1](#chapter-1-the-entry-point) | [The entry point (`main()`)](#chapter-1-the-entry-point) |
+| [2](#chapter-2-opening-a-window-glfw-x11-opengl) | [Opening a window (GLFW + X11 + OpenGL)](#chapter-2-opening-a-window-glfw-x11-opengl) |
+| [3](#chapter-3-cpu-side-initialization) | [CPU-side initialization (camera, threads, buffers)](#chapter-3-cpu-side-initialization) |
+| [4](#chapter-4-scene-initialization-the-gpu-wakes-up) | [Scene initialization (GPU)](#chapter-4-scene-initialization-the-gpu-wakes-up) |
+| [5](#chapter-5-post-processing-pipeline-setup) | [Post-processing pipeline](#chapter-5-post-processing-pipeline-setup) |
+| [6](#chapter-6-the-first-hdr-environment-load) | [Async HDR environment loading](#chapter-6-the-first-hdr-environment-load) |
+| [7](#chapter-7-ibl-generation-progressive-multi-frame) | [Progressive IBL generation](#chapter-7-ibl-generation-progressive-multi-frame) |
+| [8](#chapter-8-the-main-loop) | [The main loop](#chapter-8-the-main-loop) |
+| [9](#chapter-9-rendering-a-frame) | [Rendering a frame](#chapter-9-rendering-a-frame) |
+| [10](#chapter-10-post-processing-pipeline) | [Post-processing in detail](#chapter-10-post-processing-pipeline) |
+| [11](#chapter-11-the-first-visible-frame) | [The first visible frame](#chapter-11-the-first-visible-frame) |
+| [12](#chapter-12-gpu-memory-budget) | [GPU memory budget](#chapter-12-gpu-memory-budget) |
 
 ---
 

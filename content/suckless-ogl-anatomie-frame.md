@@ -29,18 +29,18 @@ Cet article retrace le **cycle de vie complet** de l'application : depuis le pre
 
 | Chapitre | Sujet |
 |----------|-------|
-| [1](#chapitre-1-le-point-dentree) | Le point d'entrée (`main()`) |
-| [2](#chapitre-2-ouvrir-une-fenetre-glfw-x11-opengl) | Ouverture de fenêtre (GLFW + X11 + OpenGL) |
-| [3](#chapitre-3-initialisation-cote-cpu) | Initialisation CPU (caméra, threads, buffers) |
-| [4](#chapitre-4-initialisation-de-la-scene-le-gpu-se-reveille) | Initialisation de la scène (GPU) |
-| [5](#chapitre-5-setup-du-pipeline-de-post-processing) | Pipeline de post-processing |
-| [6](#chapitre-6-le-premier-chargement-hdr) | Chargement HDR asynchrone |
-| [7](#chapitre-7-generation-ibl-progressive-multi-frame) | Génération IBL progressive |
-| [8](#chapitre-8-la-boucle-principale) | La boucle principale |
-| [9](#chapitre-9-le-rendu-dune-frame) | Le rendu d'une frame |
-| [10](#chapitre-10-pipeline-de-post-processing) | Post-processing en détail |
-| [11](#chapitre-11-la-premiere-frame-visible) | La première frame visible |
-| [12](#chapitre-12-budget-memoire-gpu) | Budget mémoire GPU |
+| [1](#chapitre-1-le-point-dentree) | [Le point d'entrée (`main()`)](#chapitre-1-le-point-dentree) |
+| [2](#chapitre-2-ouvrir-une-fenetre-glfw-x11-opengl) | [Ouverture de fenêtre (GLFW + X11 + OpenGL)](#chapitre-2-ouvrir-une-fenetre-glfw-x11-opengl) |
+| [3](#chapitre-3-initialisation-cote-cpu) | [Initialisation CPU (caméra, threads, buffers)](#chapitre-3-initialisation-cote-cpu) |
+| [4](#chapitre-4-initialisation-de-la-scene-le-gpu-se-reveille) | [Initialisation de la scène (GPU)](#chapitre-4-initialisation-de-la-scene-le-gpu-se-reveille) |
+| [5](#chapitre-5-setup-du-pipeline-de-post-processing) | [Pipeline de post-processing](#chapitre-5-setup-du-pipeline-de-post-processing) |
+| [6](#chapitre-6-le-premier-chargement-hdr) | [Chargement HDR asynchrone](#chapitre-6-le-premier-chargement-hdr) |
+| [7](#chapitre-7-generation-ibl-progressive-multi-frame) | [Génération IBL progressive](#chapitre-7-generation-ibl-progressive-multi-frame) |
+| [8](#chapitre-8-la-boucle-principale) | [La boucle principale](#chapitre-8-la-boucle-principale) |
+| [9](#chapitre-9-le-rendu-dune-frame) | [Le rendu d'une frame](#chapitre-9-le-rendu-dune-frame) |
+| [10](#chapitre-10-pipeline-de-post-processing) | [Post-processing en détail](#chapitre-10-pipeline-de-post-processing) |
+| [11](#chapitre-11-la-premiere-frame-visible) | [La première frame visible](#chapitre-11-la-premiere-frame-visible) |
+| [12](#chapitre-12-budget-memoire-gpu) | [Budget mémoire GPU](#chapitre-12-budget-memoire-gpu) |
 
 ---
 
