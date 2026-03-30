@@ -1,28 +1,19 @@
 // Initialize mermaid.js for rendering diagrams in blog articles
 // Usage: add JS: mermaid-init.js in article metadata
 // Then use <pre class="mermaid">...</pre> blocks in content
+//
+// Style: Hand-drawn sketch — always rendered in LIGHT mode for readability.
+// Works in Chrome & Brave, light & dark OS themes.
 
 document.addEventListener("DOMContentLoaded", function () {
-  // Detect dark mode from OS preference or body class
-  var isDark =
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches;
-  // Flex theme also sets a data attribute or class
-  var body = document.body;
-  if (
-    body.classList.contains("dark") ||
-    document.documentElement.getAttribute("data-theme") === "dark"
-  ) {
-    isDark = true;
-  }
-
   var script = document.createElement("script");
   script.src =
     "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
   script.onload = function () {
     mermaid.initialize({
       startOnLoad: true,
-      theme: isDark ? "dark" : "default",
+      look: "handDrawn",
+      theme: "default",
       securityLevel: "strict",
       fontSize: 14,
       flowchart: {
@@ -31,41 +22,81 @@ document.addEventListener("DOMContentLoaded", function () {
         curve: "basis",
         nodeSpacing: 30,
         rankSpacing: 40,
-        padding: 12,
+        padding: 15,
       },
       sequence: {
         useMaxWidth: false,
         mirrorActors: true,
-        actorFontSize: 13,
+        actorFontSize: 14,
         messageFontSize: 13,
         noteFontSize: 12,
-        width: 180,
+        width: 200,
         height: 50,
       },
-      gantt: { useMaxWidth: false, fontSize: 12 },
+      gantt: {
+        useMaxWidth: false,
+        fontSize: 13,
+        sectionFontSize: 14,
+        numberSectionStyles: 4,
+        barHeight: 24,
+        barGap: 6,
+      },
       state: { useMaxWidth: false },
-      themeVariables: isDark
-        ? {
-            darkMode: true,
-            background: "#1a1a2e",
-            primaryColor: "#2d5986",
-            primaryTextColor: "#e0e0e0",
-            primaryBorderColor: "#4a90d9",
-            secondaryColor: "#3d2d5c",
-            secondaryTextColor: "#e0e0e0",
-            tertiaryColor: "#2d4a3d",
-            tertiaryTextColor: "#e0e0e0",
-            lineColor: "#7eb8da",
-            textColor: "#e0e0e0",
-            mainBkg: "#2d5986",
-            nodeBorder: "#4a90d9",
-            clusterBkg: "#1e3a5f",
-            clusterBorder: "#4a90d9",
-            titleColor: "#ffffff",
-            edgeLabelBackground: "#1a1a2e",
-            nodeTextColor: "#e0e0e0",
-          }
-        : {},
+      themeVariables: {
+        background: "#ffffff",
+        primaryColor: "#ffffff",
+        primaryTextColor: "#2d2d2d",
+        primaryBorderColor: "#c2185b",
+        secondaryColor: "#fff59d",
+        secondaryTextColor: "#2d2d2d",
+        tertiaryColor: "#f3e5f5",
+        tertiaryTextColor: "#2d2d2d",
+        lineColor: "#555555",
+        textColor: "#2d2d2d",
+        mainBkg: "#ffffff",
+        nodeBorder: "#c2185b",
+        clusterBkg: "#fafafa",
+        clusterBorder: "#cccccc",
+        titleColor: "#2d2d2d",
+        edgeLabelBackground: "#ffffff",
+        nodeTextColor: "#2d2d2d",
+        /* Sequence diagram */
+        actorBkg: "#ffffff",
+        actorBorder: "#c2185b",
+        actorTextColor: "#2d2d2d",
+        actorLineColor: "#bbbbbb",
+        noteBkgColor: "#fff59d",
+        noteBorderColor: "#f9a825",
+        noteTextColor: "#2d2d2d",
+        signalColor: "#555555",
+        signalTextColor: "#2d2d2d",
+        activationBkgColor: "#e3f2fd",
+        activationBorderColor: "#42a5f5",
+        sequenceNumberColor: "#ffffff",
+        labelBoxBkgColor: "#ffffff",
+        labelBoxBorderColor: "#cccccc",
+        labelTextColor: "#2d2d2d",
+        loopTextColor: "#2d2d2d",
+        /* Gantt chart */
+        sectionBkgColor: "#f5f5f5",
+        altSectionBkgColor: "#fafafa",
+        gridColor: "#e0e0e0",
+        taskBkgColor: "#e3f2fd",
+        taskBorderColor: "#42a5f5",
+        taskTextColor: "#2d2d2d",
+        taskTextDarkColor: "#2d2d2d",
+        taskTextOutsideColor: "#2d2d2d",
+        doneTaskBkgColor: "#c8e6c9",
+        doneTaskBorderColor: "#66bb6a",
+        activeTaskBkgColor: "#fff59d",
+        activeTaskBorderColor: "#f9a825",
+        critBkgColor: "#fce4ec",
+        critBorderColor: "#c2185b",
+        todayLineColor: "#c2185b",
+        /* State diagram */
+        labelColor: "#2d2d2d",
+        altBackground: "#fafafa",
+      },
     });
   };
   document.head.appendChild(script);

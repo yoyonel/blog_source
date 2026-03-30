@@ -88,21 +88,31 @@ The design is **intentionally simple** — all complexity is encapsulated in `ap
 
 <pre class="mermaid">
 graph TD
-    A["🚀 main()"] --> B["app_init()"]
-    B --> B1["Window + OpenGL Context"]
-    B --> B2["Camera & Input"]
-    B --> B3["Scene — GPU Resources"]
-    B --> B4["Async Loader Thread"]
-    B --> B5["Post-Processing Pipeline"]
-    B --> B6["Profiling Systems"]
-    B1 & B2 & B3 & B4 & B5 & B6 --> C["app_run() — Main Loop"]
-    C --> C1["Poll Events"]
-    C1 --> C2["Camera Physics"]
-    C2 --> C3["renderer_draw_frame()"]
-    C3 --> C4["SwapBuffers"]
+    A("🚀 main()") --> B("app_init()")
+    B --> B1("Window + OpenGL Context")
+    B --> B2("Camera & Input")
+    B --> B3("Scene — GPU Resources")
+    B --> B4("Async Loader Thread")
+    B --> B5("Post-Processing Pipeline")
+    B --> B6("Profiling Systems")
+    B1 & B2 & B3 & B4 & B5 & B6 --> C("app_run() — Main Loop")
+    C --> C1("Poll Events")
+    C1 --> C2("Camera Physics")
+    C2 --> C3("renderer_draw_frame()")
+    C3 --> C4("SwapBuffers")
     C4 -->|"next frame"| C1
-    C --> D["app_cleanup()"]
-    D --> E["🏁 End"]
+    C --> D("app_cleanup()")
+    D --> E("🏁 End")
+
+    classDef entryExit fill:#fce4ec,stroke:#c2185b,stroke-width:2.5px,color:#2d2d2d
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef subsystem fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+    classDef loopNode fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+
+    class A,E entryExit
+    class B,C,D keyFunc
+    class B1,B2,B3,B4,B5,B6 subsystem
+    class C1,C2,C3,C4 loopNode
 </pre>
 
 ---
@@ -198,19 +208,27 @@ It uses a **fixed-timestep physics model** (60 Hz) with exponential smoothing fo
 <pre class="mermaid">
 graph LR
     subgraph "Camera Update Pipeline"
-        A["Mouse Delta"] -->|"EMA filter"| B["yaw_target / pitch_target"]
-        B -->|"Lerp α=0.1"| C["yaw / pitch (smoothed)"]
-        C --> D["camera_update_vectors()"]
-        D --> E["front, right, up vectors"]
-        E --> F["View Matrix (lookAt)"]
+        A("Mouse Delta") -->|"EMA filter"| B("yaw_target / pitch_target")
+        B -->|"Lerp α=0.1"| C("yaw / pitch (smoothed)")
+        C --> D("camera_update_vectors()")
+        D --> E("front, right, up vectors")
+        E --> F("View Matrix (lookAt)")
     end
 
     subgraph "Physics (Fixed 60Hz)"
-        G["WASD Keys"] --> H["Target Velocity"]
-        H -->|"acceleration × dt"| I["Current Velocity"]
-        I -->|"friction"| J["Position += vel × dt"]
-        J --> K["Head bobbing (sine wave)"]
+        G("WASD Keys") --> H("Target Velocity")
+        H -->|"acceleration × dt"| I("Current Velocity")
+        I -->|"friction"| J("Position += vel × dt")
+        J --> K("Head bobbing (sine wave)")
     end
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef subsystem fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+    classDef loopNode fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+
+    class D,F keyFunc
+    class A,B,C,E subsystem
+    class G,H,I,J,K loopNode
 </pre>
 
 ### 3.2 — Async Loader Thread
@@ -297,16 +315,19 @@ Each sphere is rendered as a **single screen-aligned quad** (4 vertices, 2 trian
 <pre class="mermaid">
 graph LR
     subgraph "Billboard Ray-Tracing (Default)"
-        A["4-vertex Quad<br/>(per instance)"] -->|"Vertex Shader:<br/>project to sphere bounds"| B["Screen-space quad"]
-        B -->|"Fragment Shader:<br/>ray-sphere intersection"| C["Perfect sphere<br/>per-pixel normal + depth"]
+        A("4-vertex Quad<br/>(per instance)") -->|"Vertex Shader:<br/>project to sphere bounds"| B("Screen-space quad")
+        B -->|"Fragment Shader:<br/>ray-sphere intersection"| C("Perfect sphere<br/>per-pixel normal + depth")
     end
 
     subgraph "Icosphere Mesh (Fallback)"
-        D["642-vertex mesh<br/>(subdivided icosahedron)"] -->|"Rasterized as<br/>triangles"| E["Polygon approximation<br/>(faceted at low subdiv)"]
+        D("642-vertex mesh<br/>(subdivided icosahedron)") -->|"Rasterized as<br/>triangles"| E("Polygon approximation<br/>(faceted at low subdiv)")
     end
 
-    style A fill:#4CAF50,stroke:#333,stroke-width:2px
-    style D fill:#999,stroke:#333,stroke-width:1px
+    classDef highlight fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef fallback fill:#f5f5f5,stroke:#bdbdbd,stroke-width:1.5px,color:#666666
+
+    class A,B,C highlight
+    class D,E fallback
 </pre>
 
 > **💡 Why Billboard Ray-Tracing?** With 100 spheres, the billboard approach uses **100 × 4 = 400 vertices** total, versus **100 × 642 = 64,200 vertices** for level-3 icospheres. More importantly, the spheres are **mathematically perfect** at every zoom level — no [tessellation](#glossary-tessellation "Subdividing geometry into finer triangles for more detail") artifacts.
@@ -317,10 +338,16 @@ The [icosphere](#glossary-icosphere "Sphere built by subdividing an icosahedron 
 
 <pre class="mermaid">
 graph LR
-    A["Level 0<br/>12 vertices<br/>20 triangles"] -->|"Subdivide"| B["Level 1<br/>42 vertices<br/>80 triangles"]
-    B -->|"Subdivide"| C["Level 2<br/>162 vertices<br/>320 triangles"]
-    C -->|"Subdivide"| D["Level 3<br/>642 vertices<br/>1,280 triangles"]
-    D -->|"..."| E["Level 6<br/>~40k vertices"]
+    A("Level 0<br/>12 vertices<br/>20 triangles") -->|"Subdivide"| B("Level 1<br/>42 vertices<br/>80 triangles")
+    B -->|"Subdivide"| C("Level 2<br/>162 vertices<br/>320 triangles")
+    C -->|"Subdivide"| D("Level 3<br/>642 vertices<br/>1,280 triangles")
+    D -->|"..."| E("Level 6<br/>~40k vertices")
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef subsystem fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+
+    class D keyFunc
+    class A,B,C,E subsystem
 </pre>
 
 ### 4.4 — Material Library
@@ -409,31 +436,41 @@ This recursively inlines files (max depth: 16) with include-guard deduplication.
 
 <pre class="mermaid">
 graph TD
-    INIT["scene_init() — Shader Compilation"] --> REND
+    INIT("scene_init() — Shader Compilation") --> REND
     INIT --> COMP
     INIT --> POST
 
     subgraph REND ["🎨 Rendering Programs"]
         direction TB
-        PBR["PBR Instanced — pbr_ibl_instanced.vert/.frag"]
-        BB["PBR Billboard — pbr_ibl_billboard.vert/.frag"]
-        SKY["Skybox — background.vert/.frag"]
-        UI["UI Overlay — ui.vert/.frag"]
+        PBR("PBR Instanced — pbr_ibl_instanced.vert/.frag")
+        BB("PBR Billboard — pbr_ibl_billboard.vert/.frag")
+        SKY("Skybox — background.vert/.frag")
+        UI("UI Overlay — ui.vert/.frag")
     end
 
     subgraph COMP ["⚡ Compute Shaders"]
         direction TB
-        SPMAP["Specular Prefilter — IBL/spmap.glsl"]
-        IRMAP["Irradiance Conv. — IBL/irmap.glsl"]
-        BRDF["BRDF LUT — IBL/spbrdf.glsl"]
-        LUM["Luminance Reduction — IBL/luminance_reduce"]
+        SPMAP("Specular Prefilter — IBL/spmap.glsl")
+        IRMAP("Irradiance Conv. — IBL/irmap.glsl")
+        BRDF("BRDF LUT — IBL/spbrdf.glsl")
+        LUM("Luminance Reduction — IBL/luminance_reduce")
     end
 
     subgraph POST ["✨ Post-Process"]
         direction TB
-        PP["Final Composite — postprocess.vert/.frag"]
-        BL["Bloom — down/up/prefilter"]
+        PP("Final Composite — postprocess.vert/.frag")
+        BL("Bloom — down/up/prefilter")
     end
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef render fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+    classDef compute fill:#f3e5f5,stroke:#ab47bc,stroke-width:1.5px,color:#2d2d2d
+    classDef postfx fill:#fce4ec,stroke:#c2185b,stroke-width:1.5px,color:#2d2d2d
+
+    class INIT keyFunc
+    class PBR,BB,SKY,UI render
+    class SPMAP,IRMAP,BRDF,LUM compute
+    class PP,BL postfx
 </pre>
 
 ---
@@ -457,15 +494,27 @@ The main offscreen framebuffer uses **[MRT](#glossary-mrt "Multiple Render Targe
 
 <pre class="mermaid">
 graph TD
-    FBO["Scene FBO — Multi-Render Target"] --> C0
+    FBO("Scene FBO — Multi-Render Target") --> C0
     FBO --> C1
     FBO --> DS
     DS --> SV
 
-    C0["🟦 Color 0 — GL_RGBA16F<br/>HDR Scene Color"]
-    C1["🟩 Color 1 — GL_RG16F<br/>Velocity Vectors"]
-    DS["🟫 Depth/Stencil — GL_DEPTH32F_STENCIL8"]
-    SV["🟪 Stencil View — GL_R8UI (TextureView)"]
+    C0("🟦 Color 0 — GL_RGBA16F<br/>HDR Scene Color")
+    C1("🟩 Color 1 — GL_RG16F<br/>Velocity Vectors")
+    DS("🟫 Depth/Stencil — GL_DEPTH32F_STENCIL8")
+    SV("🟪 Stencil View — GL_R8UI (TextureView)")
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef color0 fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+    classDef color1 fill:#e8f5e9,stroke:#66bb6a,stroke-width:1.5px,color:#2d2d2d
+    classDef depth fill:#fff3e0,stroke:#ff9800,stroke-width:1.5px,color:#2d2d2d
+    classDef stencil fill:#f3e5f5,stroke:#ab47bc,stroke-width:1.5px,color:#2d2d2d
+
+    class FBO keyFunc
+    class C0 color0
+    class C1 color1
+    class DS depth
+    class SV stencil
 </pre>
 
 ### 5.2 — Sub-Effect Resources
@@ -553,17 +602,25 @@ Once the [HDR](#glossary-hdr "High Dynamic Range — color values exceeding 1.0 
 
 <pre class="mermaid">
 graph TB
-    HDR["HDR Environment Map<br/>2048×1024 equirectangular<br/>GL_RGBA16F"] --> SPEC
+    HDR("HDR Environment Map<br/>2048×1024 equirectangular<br/>GL_RGBA16F") --> SPEC
     HDR --> IRR
     HDR --> LUM
 
-    SPEC["Specular Prefilter Map<br/>1024×1024 × 5 mip levels<br/>Compute: spmap.glsl"]
-    IRR["Irradiance Map<br/>64×64<br/>Compute: irmap.glsl"]
-    LUM["Luminance Reduction<br/>1×1 average<br/>Compute: luminance_reduce"]
+    SPEC("Specular Prefilter Map<br/>1024×1024 × 5 mip levels<br/>Compute: spmap.glsl")
+    IRR("Irradiance Map<br/>64×64<br/>Compute: irmap.glsl")
+    LUM("Luminance Reduction<br/>1×1 average<br/>Compute: luminance_reduce")
 
-    SPEC -->|"Per-pixel reflection<br/>roughness → mip level"| PBR["PBR Shader"]
+    SPEC -->|"Per-pixel reflection<br/>roughness → mip level"| PBR("PBR Shader")
     IRR -->|"Diffuse hemisphere<br/>integral"| PBR
-    LUM -->|"Auto exposure<br/>threshold"| PP["Post-Process"]
+    LUM -->|"Auto exposure<br/>threshold"| PP("Post-Process")
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef compute fill:#f3e5f5,stroke:#ab47bc,stroke-width:1.5px,color:#2d2d2d
+    classDef target fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+
+    class HDR keyFunc
+    class SPEC,IRR,LUM compute
+    class PBR,PP target
 </pre>
 
 | Map | Resolution | Format | Mip Levels | Compute Shader |
@@ -636,15 +693,23 @@ enum IBLState {
 
 <pre class="mermaid">
 graph TD
-    A["① glfwPollEvents() — Keyboard, mouse, resize"]
-    A --> B["② Time & FPS — delta_time, frame_count"]
-    B --> C["③ Camera Physics — Fixed 60Hz, smooth rotation lerp"]
-    C --> D["④ Geometry Update — if subdivisions changed"]
-    D --> E["⑤ app_update() — Process input state"]
-    E --> F["⑥ renderer_draw_frame() — THE BIG ONE"]
-    F --> G["⑦ Tracy screenshots — profiling"]
-    G --> H["⑧ glfwSwapBuffers() — Present to screen"]
+    A("① glfwPollEvents() — Keyboard, mouse, resize")
+    A --> B("② Time & FPS — delta_time, frame_count")
+    B --> C("③ Camera Physics — Fixed 60Hz, smooth rotation lerp")
+    C --> D("④ Geometry Update — if subdivisions changed")
+    D --> E("⑤ app_update() — Process input state")
+    E --> F("⑥ renderer_draw_frame() — THE BIG ONE")
+    F --> G("⑦ Tracy screenshots — profiling")
+    G --> H("⑧ glfwSwapBuffers() — Present to screen")
     H -->|"next frame"| A
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef loopNode fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+    classDef subsystem fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+
+    class F keyFunc
+    class A,B,C,D,E,G loopNode
+    class H subsystem
 </pre>
 
 ### 8.1 — Deferred Resize
@@ -679,15 +744,24 @@ This ensures deterministic physics regardless of frame rate, while rotation stay
 
 <pre class="mermaid">
 graph TD
-    A["GPU Profiler Begin"] --> B["postprocess_begin() — Bind Scene FBO, Clear"]
-    B --> C["camera_get_view_matrix()"]
-    C --> D["glm_perspective() — FOV=60°, near=0.1, far=1000"]
-    D --> E["ViewProj = Proj × View"]
-    E --> G1["🌅 Pass 1: Skybox — depth disabled"]
-    G1 --> G2["🔢 Pass 2: Sphere Sorting — GPU Bitonic"]
-    G2 --> G3["🔮 Pass 3: PBR Spheres — instanced billboard draw"]
-    G3 --> H["✨ postprocess_end() — 7-Stage Pipeline"]
-    H --> I["🖥️ UI Overlay + Env Transition"]
+    A("GPU Profiler Begin") --> B("postprocess_begin() — Bind Scene FBO, Clear")
+    B --> C("camera_get_view_matrix()")
+    C --> D("glm_perspective() — FOV=60°, near=0.1, far=1000")
+    D --> E("ViewProj = Proj × View")
+    E --> G1("🌅 Pass 1: Skybox — depth disabled")
+    G1 --> G2("🔢 Pass 2: Sphere Sorting — GPU Bitonic")
+    G2 --> G3("🔮 Pass 3: PBR Spheres — instanced billboard draw")
+    G3 --> H("✨ postprocess_end() — 7-Stage Pipeline")
+    H --> I("🖥️ UI Overlay + Env Transition")
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef loopNode fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+    classDef setup fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+    classDef postfx fill:#fce4ec,stroke:#c2185b,stroke-width:1.5px,color:#2d2d2d
+
+    class G1,G2,G3 keyFunc
+    class A,B,C,D,E setup
+    class H,I postfx
 </pre>
 
 ### 9.2 — Pass 1: Skybox
@@ -754,22 +828,32 @@ vec3 N = normalize(hitPos - center);  // perfect analytic normal
 
 <pre class="mermaid">
 graph TD
-    R["🔦 Build Ray — origin=camPos, dir=normalize(WorldPos-camPos)"]
-    R --> INT["📐 Ray-Sphere Intersection — discriminant = b² - c"]
+    R("🔦 Build Ray — origin=camPos, dir=normalize(WorldPos-camPos)")
+    R --> INT("📐 Ray-Sphere Intersection — discriminant = b² - c")
     INT --> HIT{"Hit?"}
-    HIT -->|"No — disc < 0"| DISCARD["❌ discard — pixel outside sphere"]
-    HIT -->|"Yes"| HITPOS["✅ hitPos = origin + t × dir"]
-    HITPOS --> NORMAL["N = normalize(hitPos - center) — perfect normal"]
-    HITPOS --> DEPTH["gl_FragDepth = project(hitPos) — correct Z-buffer"]
-    NORMAL --> PBR["V = -rayDir"]
-    PBR --> FRESNEL["Fresnel-Schlick"]
-    PBR --> GGX["Smith-GGX Geometry"]
-    PBR --> NDF["GGX NDF Distribution"]
-    FRESNEL & GGX & NDF --> SPEC["IBL Specular — prefilterMap × brdfLUT"]
-    PBR --> DIFF["IBL Diffuse — irradiance(N) × albedo"]
-    SPEC & DIFF --> FINAL["color = Diffuse + Specular"]
-    FINAL --> AA["Edge Anti-Aliasing — smoothstep on discriminant"]
-    AA --> ALPHA["FragColor = vec4(color, edgeFactor) — premultiplied alpha"]
+    HIT -->|"No — disc < 0"| DISCARD("❌ discard — pixel outside sphere")
+    HIT -->|"Yes"| HITPOS("✅ hitPos = origin + t × dir")
+    HITPOS --> NORMAL("N = normalize(hitPos - center) — perfect normal")
+    HITPOS --> DEPTH("gl_FragDepth = project(hitPos) — correct Z-buffer")
+    NORMAL --> PBR("V = -rayDir")
+    PBR --> FRESNEL("Fresnel-Schlick")
+    PBR --> GGX("Smith-GGX Geometry")
+    PBR --> NDF("GGX NDF Distribution")
+    FRESNEL & GGX & NDF --> SPEC("IBL Specular — prefilterMap × brdfLUT")
+    PBR --> DIFF("IBL Diffuse — irradiance(N) × albedo")
+    SPEC & DIFF --> FINAL("color = Diffuse + Specular")
+    FINAL --> AA("Edge Anti-Aliasing — smoothstep on discriminant")
+    AA --> ALPHA("FragColor = vec4(color, edgeFactor) — premultiplied alpha")
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef compute fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+    classDef entryExit fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#2d2d2d
+    classDef subsystem fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+
+    class R,INT,HIT keyFunc
+    class HITPOS,NORMAL,DEPTH,PBR compute
+    class FRESNEL,GGX,NDF,SPEC,DIFF subsystem
+    class FINAL,AA,ALPHA,DISCARD entryExit
 </pre>
 
 #### Analytical Edge Anti-Aliasing
@@ -801,22 +885,31 @@ After the 3D scene is rendered into the [MRT](#glossary-mrt "Multiple Render Tar
 
 <pre class="mermaid">
 graph TD
-    A["Memory Barrier — flush MRT writes"]
-    A --> B["① Bloom — Downsample → Threshold → Upsample"]
-    B --> C["② Depth of Field — CoC → Bokeh blur"]
-    C --> D["③ Auto-Exposure — Luminance reduction → PBO readback"]
-    D --> E["④ Motion Blur — Tile-max velocity → Neighbor-max"]
-    E --> F["⑤ Bind 9 Textures + Upload UBO"]
-    F --> H["Draw fullscreen quad"]
-    H --> J["Vignette"]
-    J --> K["Film Grain"]
-    K --> L["White Balance"]
-    L --> M["Color Grading — Sat, Contrast, Gamma, Gain"]
-    M --> N["Tonemapping — filmic curve"]
-    N --> O["3D LUT Grading"]
-    O --> P["FXAA"]
-    P --> Q["Dithering — anti-banding"]
-    Q --> R["Atmospheric Fog"]
+    A("Memory Barrier — flush MRT writes")
+    A --> B("① Bloom — Downsample → Threshold → Upsample")
+    B --> C("② Depth of Field — CoC → Bokeh blur")
+    C --> D("③ Auto-Exposure — Luminance reduction → PBO readback")
+    D --> E("④ Motion Blur — Tile-max velocity → Neighbor-max")
+    E --> F("⑤ Bind 9 Textures + Upload UBO")
+    F --> H("Draw fullscreen quad")
+    H --> J("Vignette")
+    J --> K("Film Grain")
+    K --> L("White Balance")
+    L --> M("Color Grading — Sat, Contrast, Gamma, Gain")
+    M --> N("Tonemapping — filmic curve")
+    N --> O("3D LUT Grading")
+    O --> P("FXAA")
+    P --> Q("Dithering — anti-banding")
+    Q --> R("Atmospheric Fog")
+
+    classDef keyFunc fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef compute fill:#f3e5f5,stroke:#ab47bc,stroke-width:1.5px,color:#2d2d2d
+    classDef shader fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+    classDef subsystem fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+
+    class A,F,H subsystem
+    class B,C,D,E compute
+    class J,K,L,M,N,O,P,Q,R shader
 </pre>
 
 ### 10.2 — Post-Processing Effects Gallery
@@ -979,16 +1072,26 @@ The engine supports automated captures from different camera angles, used for vi
 
 <pre class="mermaid">
 graph TD
-    POLL["① CPU — glfwPollEvents()"] --> TIME["② CPU — Δt calculation"]
-    TIME --> CAM["③ CPU — Camera physics 60Hz"]
-    CAM --> SORT["④ CPU → GPU — Sphere sorting"]
-    SORT --> FBO["⑤ GPU — Bind Scene FBO, Clear"]
-    FBO --> SKY["🌅 Skybox Pass — Equirectangular sampling"]
-    SKY --> SPHERES["🔮 Billboard Pass — 1 draw call, 100 instances, ray-tracing"]
-    SPHERES --> BLOOM["✨ Bloom + DoF + Auto-Exposure + Motion Blur"]
-    BLOOM --> COMP["🎬 Final Composite — 9 textures, UBO, fullscreen quad"]
-    COMP --> UI["🖥️ UI Overlay + Profiler + Transition"]
-    UI --> SWAP["⑩ glfwSwapBuffers()"]
+    POLL("① CPU — glfwPollEvents()") --> TIME("② CPU — Δt calculation")
+    TIME --> CAM("③ CPU — Camera physics 60Hz")
+    CAM --> SORT("④ CPU → GPU — Sphere sorting")
+    SORT --> FBO("⑤ GPU — Bind Scene FBO, Clear")
+    FBO --> SKY("🌅 Skybox Pass — Equirectangular sampling")
+    SKY --> SPHERES("🔮 Billboard Pass — 1 draw call, 100 instances, ray-tracing")
+    SPHERES --> BLOOM("✨ Bloom + DoF + Auto-Exposure + Motion Blur")
+    BLOOM --> COMP("🎬 Final Composite — 9 textures, UBO, fullscreen quad")
+    COMP --> UI("🖥️ UI Overlay + Profiler + Transition")
+    UI --> SWAP("⑩ glfwSwapBuffers()")
+
+    classDef cpu fill:#e3f2fd,stroke:#42a5f5,stroke-width:1.5px,color:#2d2d2d
+    classDef gpu fill:#fff59d,stroke:#f9a825,stroke-width:2px,color:#2d2d2d
+    classDef postfx fill:#f3e5f5,stroke:#ab47bc,stroke-width:1.5px,color:#2d2d2d
+    classDef subsystem fill:#ffffff,stroke:#aaaaaa,stroke-width:1.5px,color:#444444
+
+    class POLL,TIME,CAM,SORT cpu
+    class FBO,SKY,SPHERES gpu
+    class BLOOM,COMP postfx
+    class UI,SWAP subsystem
 </pre>
 
 ---

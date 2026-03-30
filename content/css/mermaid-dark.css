@@ -1,14 +1,29 @@
-/* Mermaid diagram overrides for dark-theme blogs */
+/* Mermaid diagram styles — always rendered in LIGHT mode for readability.
+   Overrides both light and dark browser/OS themes to ensure consistent
+   hand-drawn sketch appearance across Chrome, Brave, and Firefox. */
 
-/* Container — scrollable, diagrams render at natural size */
+/* ===== Nuclear light-mode lock — blocks Brave/Chromium auto-dark ===== */
+pre.mermaid,
+pre.mermaid *,
+pre.mermaid svg,
+pre.mermaid svg * {
+  color-scheme: light only !important;
+  forced-color-adjust: none !important;
+}
+
+/* Container — always light, scrollable */
 pre.mermaid {
-  background: #1a1a2e !important;
-  border: 1px solid #4a90d9 !important;
-  border-radius: 8px;
-  padding: 1em !important;
+  background: #ffffff !important;
+  border: 1.5px solid #e0e0e0 !important;
+  border-radius: 12px;
+  padding: 1.5em !important;
   overflow-x: auto;
   overflow-y: visible;
   text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  /* Prevent Brave/Chrome filter-based dark mode injection */
+  filter: none !important;
+  -webkit-filter: none !important;
 }
 
 /* SVG keeps its intrinsic size — container scrolls if wider than article */
@@ -16,102 +31,221 @@ pre.mermaid svg {
   max-width: none;
   height: auto;
   display: inline-block;
+  filter: none !important;
+  -webkit-filter: none !important;
+  background: transparent !important;
 }
 
-/* Dark mode overrides — force readable text in all diagram types */
+/* ===== Dark mode override: force EVERYTHING light ===== */
 @media (prefers-color-scheme: dark) {
-  /* Node text */
-  .mermaid .nodeLabel,
-  .mermaid .label,
-  .mermaid .edgeLabel,
-  .mermaid .cluster-label,
-  .mermaid text,
-  .mermaid .taskText,
-  .mermaid .sectionTitle,
-  .mermaid .titleText,
-  .mermaid tspan {
-    fill: #e0e0e0 !important;
-    color: #e0e0e0 !important;
+  pre.mermaid {
+    background: #ffffff !important;
+    border-color: #d0d0d0 !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   }
 
-  /* Node backgrounds */
-  .mermaid .node rect,
-  .mermaid .node circle,
-  .mermaid .node polygon {
-    fill: #2d5986 !important;
-    stroke: #4a90d9 !important;
+  /* Force all text to dark */
+  pre.mermaid .nodeLabel,
+  pre.mermaid .label,
+  pre.mermaid .edgeLabel,
+  pre.mermaid .cluster-label,
+  pre.mermaid text,
+  pre.mermaid .taskText,
+  pre.mermaid .sectionTitle,
+  pre.mermaid .titleText,
+  pre.mermaid tspan {
+    fill: #2d2d2d !important;
+    color: #2d2d2d !important;
   }
 
-  /* Cluster (subgraph) backgrounds */
-  .mermaid .cluster rect {
-    fill: #1e3a5f !important;
-    stroke: #4a90d9 !important;
+  /* Prevent SVG element inversion */
+  pre.mermaid svg,
+  pre.mermaid svg * {
+    filter: none !important;
+    -webkit-filter: none !important;
   }
 
-  /* Edge labels background */
-  .mermaid .edgeLabel rect {
-    fill: #1a1a2e !important;
-    opacity: 0.9;
+  /* Lines / arrows — keep visible on white */
+  pre.mermaid .edgePath .path,
+  pre.mermaid .flowchart-link {
+    stroke: #555555 !important;
   }
-
-  /* Lines / arrows */
-  .mermaid .edgePath .path,
-  .mermaid .flowchart-link {
-    stroke: #7eb8da !important;
-  }
-  .mermaid marker path {
-    fill: #7eb8da !important;
+  pre.mermaid marker path {
+    fill: #555555 !important;
   }
 
   /* Sequence diagram */
-  .mermaid .actor {
-    fill: #2d5986 !important;
-    stroke: #4a90d9 !important;
+  pre.mermaid .actor {
+    fill: #ffffff !important;
+    stroke: #c2185b !important;
   }
-  .mermaid .actor-line {
-    stroke: #5a9fd4 !important;
+  pre.mermaid .actor-line {
+    stroke: #999999 !important;
   }
-  .mermaid .messageLine0,
-  .mermaid .messageLine1 {
-    stroke: #7eb8da !important;
+  pre.mermaid .messageLine0,
+  pre.mermaid .messageLine1 {
+    stroke: #555555 !important;
   }
-  .mermaid .messageText {
-    fill: #e0e0e0 !important;
+  pre.mermaid .messageText {
+    fill: #2d2d2d !important;
   }
-  .mermaid .note {
-    fill: #3d3d1a !important;
-    stroke: #8b8b3d !important;
-  }
-  .mermaid .noteText {
-    fill: #e0e0e0 !important;
-  }
+}
 
-  /* State diagram */
-  .mermaid .state-note-edge-label,
-  .mermaid .statediagram-state .label {
-    fill: #e0e0e0 !important;
-  }
-  .mermaid .statediagram-cluster rect {
-    fill: #1e3a5f !important;
-    stroke: #4a90d9 !important;
-  }
+/* Flex theme dark class override */
+.dark pre.mermaid,
+[data-theme="dark"] pre.mermaid {
+  color-scheme: light only !important;
+  background: #ffffff !important;
+  border-color: #d0d0d0 !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+}
 
-  /* Gantt chart */
-  .mermaid .section {
-    fill: #1e3a5f !important;
+.dark pre.mermaid svg,
+.dark pre.mermaid svg *,
+[data-theme="dark"] pre.mermaid svg,
+[data-theme="dark"] pre.mermaid svg * {
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+/* Brave forced-colors mode fallback */
+@media (forced-colors: active) {
+  pre.mermaid,
+  pre.mermaid * {
+    forced-color-adjust: none !important;
   }
-  .mermaid .task {
-    fill: #2d5986 !important;
-    stroke: #4a90d9 !important;
+  pre.mermaid {
+    background: #ffffff !important;
   }
-  .mermaid .taskTextOutsideRight,
-  .mermaid .taskTextOutsideLeft {
-    fill: #e0e0e0 !important;
-  }
-  .mermaid .grid .tick line {
-    stroke: #444 !important;
-  }
-  .mermaid .grid .tick text {
-    fill: #aaa !important;
-  }
+}
+
+/* ===== Sequence diagram — force light ===== */
+pre.mermaid .note {
+  fill: #fff59d !important;
+  stroke: #f9a825 !important;
+}
+pre.mermaid .noteText,
+pre.mermaid .noteText > tspan {
+  fill: #2d2d2d !important;
+  color: #2d2d2d !important;
+}
+pre.mermaid .actor {
+  fill: #ffffff !important;
+  stroke: #c2185b !important;
+}
+pre.mermaid .actor-man {
+  fill: #ffffff !important;
+  stroke: #c2185b !important;
+}
+pre.mermaid text.actor > tspan {
+  fill: #2d2d2d !important;
+}
+pre.mermaid .actor-line {
+  stroke: #bbbbbb !important;
+}
+pre.mermaid .messageLine0,
+pre.mermaid .messageLine1 {
+  stroke: #555555 !important;
+}
+pre.mermaid .messageText {
+  fill: #2d2d2d !important;
+}
+pre.mermaid .loopText,
+pre.mermaid .loopText > tspan {
+  fill: #2d2d2d !important;
+}
+pre.mermaid .activation0,
+pre.mermaid .activation1,
+pre.mermaid .activation2 {
+  fill: #e3f2fd !important;
+  stroke: #42a5f5 !important;
+}
+pre.mermaid .sequenceNumber {
+  fill: #ffffff !important;
+}
+pre.mermaid #arrowhead path {
+  fill: #555555 !important;
+}
+pre.mermaid #crosshead path {
+  fill: #555555 !important;
+  stroke: #555555 !important;
+}
+
+/* ===== State diagram — force light ===== */
+pre.mermaid .statediagram-state rect,
+pre.mermaid .statediagram-state .composit {
+  fill: #ffffff !important;
+  stroke: #c2185b !important;
+}
+pre.mermaid .state-note-edge-label,
+pre.mermaid .statediagram-state .label,
+pre.mermaid .statediagram-state text {
+  fill: #2d2d2d !important;
+}
+pre.mermaid .statediagram-cluster rect {
+  fill: #fafafa !important;
+  stroke: #cccccc !important;
+}
+pre.mermaid .stateLabel .label {
+  fill: #2d2d2d !important;
+  color: #2d2d2d !important;
+}
+pre.mermaid .stateTransition {
+  stroke: #555555 !important;
+}
+
+/* ===== Gantt chart — force light ===== */
+pre.mermaid .section {
+  fill: #f5f5f5 !important;
+}
+pre.mermaid .section.odd {
+  fill: #fafafa !important;
+}
+pre.mermaid .task {
+  fill: #e3f2fd !important;
+  stroke: #42a5f5 !important;
+}
+pre.mermaid .taskText,
+pre.mermaid .taskText > tspan {
+  fill: #2d2d2d !important;
+  font-weight: 600 !important;
+}
+pre.mermaid .taskTextOutsideRight,
+pre.mermaid .taskTextOutsideLeft {
+  fill: #2d2d2d !important;
+}
+pre.mermaid .sectionTitle,
+pre.mermaid .sectionTitle > text {
+  fill: #2d2d2d !important;
+}
+pre.mermaid .grid .tick line {
+  stroke: #e0e0e0 !important;
+}
+pre.mermaid .grid .tick text {
+  fill: #666666 !important;
+}
+pre.mermaid .titleText {
+  fill: #2d2d2d !important;
+}
+pre.mermaid .done0,
+pre.mermaid .done1,
+pre.mermaid .done2,
+pre.mermaid .done3 {
+  fill: #c8e6c9 !important;
+  stroke: #66bb6a !important;
+}
+pre.mermaid .active0,
+pre.mermaid .active1,
+pre.mermaid .active2,
+pre.mermaid .active3 {
+  fill: #fff59d !important;
+  stroke: #f9a825 !important;
+}
+pre.mermaid .crit0,
+pre.mermaid .crit1,
+pre.mermaid .crit2,
+pre.mermaid .crit3 {
+  fill: #fce4ec !important;
+  stroke: #c2185b !important;
 }
