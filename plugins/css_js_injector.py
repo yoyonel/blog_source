@@ -37,7 +37,7 @@ def inject_css_js(path, context):
     if not css_meta and not js_meta:
         return
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         content = f.read()
 
     if css_meta:
@@ -55,9 +55,7 @@ def inject_css_js(path, context):
                 fname = entry.replace("(top)", "").strip()
                 tag = f'<script src="{static_root}/js/{fname}"></script>'
                 # Match <body ...> with any attributes
-                content = re.sub(
-                    r"(<body[^>]*>)", rf"\1\n{tag}", content, count=1
-                )
+                content = re.sub(r"(<body[^>]*>)", rf"\1\n{tag}", content, count=1)
             else:
                 fname = entry.replace("(bottom)", "").strip()
                 tag = f'<script src="{static_root}/js/{fname}"></script>'

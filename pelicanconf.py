@@ -28,9 +28,7 @@ LINKS = (
 )
 
 # Social
-SOCIAL = (
-    ("github", "https://github.com/yoyonel"),
-)
+SOCIAL = (("github", "https://github.com/yoyonel"),)
 
 DEFAULT_PAGINATION = 10
 

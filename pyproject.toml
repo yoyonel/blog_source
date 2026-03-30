@@ -8,3 +8,33 @@ dependencies = [
     "ghp-import>=2.1",
     "pelican-i18n-subsites>=1.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0",
+    "ruff>=0.11",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+extend-exclude = ["themes"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+
+[tool.ruff.lint.per-file-ignores]
+"publishconf.py" = ["F401", "F403"]  # wildcard import from pelicanconf
+"content/python/*.py" = ["ALL"]       # blog example code — not linted
+
+[tool.ruff.format]
+exclude = ["content/python/*.py"]
