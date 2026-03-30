@@ -6,8 +6,8 @@ date: 2026-03-29
 description: An illustrated technical deep-dive into the suckless-ogl PBR rendering engine — from main() to photons on screen. We trace every pipeline step: OpenGL initialization, async HDR loading, billboard ray-traced spheres, progressive IBL, and cinematic post-processing.
 tags: OpenGL, C, PBR, IBL, 3D Rendering, GLSL, Ray-Tracing, Post-Processing, Development
 category: Development
-CSS: mermaid-dark.css
-JS: mermaid-init.js (top)
+CSS: mermaid-dark.css, glossary-tooltip.css
+JS: mermaid-init.js (top), glossary-tooltip.js
 ---
 
 # Anatomy of a Frame: The Complete Lifecycle of suckless-ogl
