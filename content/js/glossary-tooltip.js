@@ -1,8 +1,8 @@
-// Glossary tooltip — replaces native title="" with styled popups
-// for links matching a[href^="#glossary-"][title]
+// Glossary & chapter-preview tooltips
+// - Glossary: replaces native title="" with styled popups for a[href^="#glossary-"]
+// - Chapter preview: shows a text excerpt on hover for TOC links (a[href^="#chapitre-"], a[href^="#chapter-"])
 //
-// Loaded after DOM content. Creates a single tooltip element and
-// wires mouseenter/mouseleave/focus/blur on glossary anchors.
+// Creates a single shared tooltip element reused for both.
 
 (() => {
   // --- Create tooltip element ---
@@ -27,6 +27,39 @@
       return { term: raw.substring(0, sep).trim(), desc: raw.substring(sep + 3).trim() };
     }
     return { term: "", desc: raw.trim() };
+  }
+
+  // --- Extract preview text from chapter target ---
+  function extractChapterPreview(href) {
+    var id = href.replace(/^#/, "");
+    var heading = document.getElementById(id);
+    if (!heading) return null;
+
+    var texts = [];
+    var charCount = 0;
+    var maxChars = 220;
+    var el = heading.nextElementSibling;
+
+    while (el && charCount < maxChars) {
+      // Stop at next h2 (= next chapter), but traverse into sub-sections (h3/h4)
+      if (el.tagName === "H2") break;
+      // Only grab paragraph text, skip code blocks / tables / diagrams
+      if (el.tagName === "P") {
+        const text = el.textContent.trim();
+        if (text) {
+          texts.push(text);
+          charCount += text.length;
+        }
+      }
+      el = el.nextElementSibling;
+    }
+
+    if (texts.length === 0) return null;
+    var preview = texts.join(" ");
+    if (preview.length > maxChars) {
+      preview = `${preview.substring(0, maxChars).replace(/\s+\S*$/, "")}…`;
+    }
+    return preview;
   }
 
   // --- Position tooltip near the anchor ---
@@ -64,12 +97,13 @@
     arrow.style.left = `${anchorCenter}px`;
   }
 
-  // --- Show ---
-  function showTooltip(anchor) {
+  // --- Show glossary tooltip ---
+  function showGlossaryTooltip(anchor) {
     clearTimeout(hideTimer);
     var titleText = anchor.getAttribute("data-glossary-title");
     if (!titleText) return;
 
+    tip.classList.remove("chapter-preview");
     var parsed = parseTitleText(titleText);
     if (parsed.term) {
       termEl.textContent = parsed.term;
@@ -79,14 +113,43 @@
     }
     descEl.textContent = parsed.desc;
 
-    // Make visible to measure, then position
+    showTip(anchor);
+  }
+
+  // --- Show chapter preview tooltip ---
+  function showChapterTooltip(anchor) {
+    clearTimeout(hideTimer);
+    var href = anchor.getAttribute("href");
+    var preview = anchor.getAttribute("data-chapter-preview");
+    var title = anchor.getAttribute("data-chapter-title");
+    if (!preview && href) {
+      preview = extractChapterPreview(href);
+      if (preview) {
+        anchor.setAttribute("data-chapter-preview", preview);
+      }
+    }
+    if (!preview) return;
+
+    tip.classList.add("chapter-preview");
+    if (title) {
+      termEl.textContent = title;
+      termEl.style.display = "";
+    } else {
+      termEl.style.display = "none";
+    }
+    descEl.textContent = preview;
+
+    showTip(anchor);
+  }
+
+  // --- Generic show ---
+  function showTip(anchor) {
     tip.style.opacity = "0";
     tip.style.display = "block";
     tip.classList.remove("visible");
 
     positionTooltip(anchor);
 
-    // Trigger transition
     requestAnimationFrame(() => {
       tip.classList.add("visible");
       tip.style.opacity = "";
@@ -97,7 +160,6 @@
   function hideTooltip() {
     hideTimer = setTimeout(() => {
       tip.classList.remove("visible");
-      // After transition, move off-screen
       setTimeout(() => {
         if (!tip.classList.contains("visible")) {
           tip.style.display = "none";
@@ -107,29 +169,58 @@
   }
 
   // --- Wire up all glossary anchors ---
-  function initAnchors() {
+  function initGlossaryAnchors() {
     const anchors = document.querySelectorAll('a[href^="#glossary-"][title]');
     for (let i = 0; i < anchors.length; i++) {
       const a = anchors[i];
-      // Move title to data attribute to suppress native tooltip
       a.setAttribute("data-glossary-title", a.getAttribute("title"));
       a.removeAttribute("title");
 
       a.addEventListener("mouseenter", function () {
-        showTooltip(this);
+        showGlossaryTooltip(this);
       });
       a.addEventListener("mouseleave", hideTooltip);
       a.addEventListener("focus", function () {
-        showTooltip(this);
+        showGlossaryTooltip(this);
+      });
+      a.addEventListener("blur", hideTooltip);
+    }
+  }
+
+  // --- Wire up chapter TOC links ---
+  function initChapterAnchors() {
+    // Match French (#chapitre-) and English (#chapter-) anchor links
+    var anchors = document.querySelectorAll('a[href^="#chapitre-"], a[href^="#chapter-"]');
+    for (let i = 0; i < anchors.length; i++) {
+      const a = anchors[i];
+      // Find the chapter title from the target heading
+      const href = a.getAttribute("href");
+      const id = href.replace(/^#/, "");
+      const heading = document.getElementById(id);
+      if (heading) {
+        a.setAttribute("data-chapter-title", heading.textContent.trim());
+      }
+
+      a.addEventListener("mouseenter", function () {
+        showChapterTooltip(this);
+      });
+      a.addEventListener("mouseleave", hideTooltip);
+      a.addEventListener("focus", function () {
+        showChapterTooltip(this);
       });
       a.addEventListener("blur", hideTooltip);
     }
   }
 
   // --- Init on DOM ready ---
+  function init() {
+    initGlossaryAnchors();
+    initChapterAnchors();
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initAnchors);
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    initAnchors();
+    init();
   }
 })();
