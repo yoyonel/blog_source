@@ -5,20 +5,20 @@
 > Page de test : `suckless-ogl-anatomie-frame.html`
 > Preview : [bloggy-perf-test.surge.sh](https://bloggy-perf-test.surge.sh/suckless-ogl-anatomie-frame.html)
 
-## Résultats — Core Web Vitals (Lighthouse, desktop)
+## Résultats — Core Web Vitals (Lighthouse, desktop, médiane de 3 runs)
 
 | Métrique | Avant optimisation | Après optimisation | Seuil « bon » |
 |----------|-------------------:|-------------------:|:--------------:|
-| **Performance Score** | 35 | **80** | ≥ 90 |
-| **First Contentful Paint (FCP)** | 2.95 s | **1.74 s** 🟢 | ≤ 1.8 s |
-| **Largest Contentful Paint (LCP)** | 3.36 s | **2.21 s** 🟢 | ≤ 2.5 s |
-| **Total Blocking Time (TBT)** | 316 ms | **41 ms** 🟢 | ≤ 200 ms |
+| **Performance Score** | 39 | **80** | ≥ 90 |
+| **First Contentful Paint (FCP)** | 4.04 s | **1.73 s** 🟢 | ≤ 1.8 s |
+| **Largest Contentful Paint (LCP)** | 6.81 s | **2.21 s** 🟢 | ≤ 2.5 s |
+| **Total Blocking Time (TBT)** | 0 ms | **15 ms** 🟢 | ≤ 200 ms |
 | **Cumulative Layout Shift (CLS)** | 0.33 | **0.02** 🟢 | ≤ 0.1 |
-| **Speed Index (SI)** | 2.95 s | **1.74 s** 🟢 | ≤ 3.4 s |
+| **Speed Index (SI)** | 5.78 s | **1.73 s** 🟢 | ≤ 3.4 s |
 
 > Mesures réalisées via `just audit` (Lighthouse CLI, Chromium headless, desktop
-> simulated throttling). Le temps de chargement initial de la page était > 10 s
-> (Network tab, Brave DevTools) avant toute optimisation.
+> simulated throttling, médiane de 3 runs). Le temps de chargement initial de
+> la page était > 10 s (Network tab, Brave DevTools) avant toute optimisation.
 
 ## Contexte
 
@@ -195,25 +195,88 @@ fait une seule fois par diagramme.
 #### Script Gantt résiduel
 
 Un petit script inline est injecté avant `</body>` pour repositionner les labels
-des tâches Gantt à droite de leurs barres. Cette modification n'a aucun impact
-CLS car elle ne change que des attributs SVG internes (position de texte).
+des tâches Gantt à droite de leurs barres et centrer le scroll horizontal des
+diagrammes larges (`scrollLeft = overflow / 2`). Ce script s'exécute sur
+`window.load` (pas `DOMContentLoaded`) pour éviter le warning Firefox
+« Layout was forced before the page was fully loaded ».
+
+### 6. Analyse profiler Firefox — optimisations réseau et rendu
+
+L'analyse du profiler Firefox (Call Tree + Network) a révélé deux goulots
+d'étranglement résiduels :
+
+| Problème | Impact profiler |
+|----------|-----------------|
+| **Paint des 17 SVGs hand-drawn** | 26% CPU (self) |
+| **Reflow du HTML 1.2 Mo** | 13% CPU |
+| **Google Fonts sans preconnect** | DNS+TCP+TLS round-trips supplémentaires |
+
+**Fichier** : `plugins/html_optimizer.py` (nouveau plugin)
+
+#### 6a. Preconnect Google Fonts
+
+Injection automatique de `<link rel="preconnect">` en tout début de `<head>`,
+avant le `<link>` du stylesheet Google Fonts :
+
+```html
+<head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- ... puis le stylesheet fonts.googleapis.com/css2 ... -->
+```
+
+Cela élimine les round-trips DNS + TCP + TLS pour `fonts.gstatic.com` qui
+servait les fichiers `.woff2` (Source Sans Pro, Source Code Pro).
+
+#### 6b. Lazy-load des SVGs mermaid hors viewport
+
+Sur les 17 diagrammes SVG inline, seuls les 2 premiers sont visibles au
+chargement initial (above the fold). Les 15 suivants sont wrappés dans des
+`<template>` (non parsés/rendus par le navigateur) et révélés via
+`IntersectionObserver` quand l'utilisateur s'en approche (rootMargin 400px).
+
+```html
+<!-- Eager (above the fold) -->
+<pre class="mermaid"><span class="mermaid-center"><svg ...>...</svg></span></pre>
+
+<!-- Lazy (below the fold) -->
+<pre class="mermaid" data-lazy-svg>
+  <template><span class="mermaid-center"><svg ...>...</svg></span></template>
+</pre>
+```
+
+**Impact** : réduit de ~85% le travail initial de Paint (2 SVGs au lieu de 17).
+
+#### 6c. Corrections console Firefox
+
+| Warning | Fix |
+|---------|-----|
+| `Layout was forced before the page was fully loaded` | Script mermaid : `DOMContentLoaded` → `window.load` |
+| `favicon.ico 404` | Favicon 32×32 généré depuis avatar.gif (`FAVICON` dans pelicanconf) |
+| `Found a sectioned h1 with no specified font-size` | `content/css/custom.css` : `article/aside/section h1 { font-size: 2em }` |
+
+> Les warnings `Glyph bbox was incorrect` sur Font Awesome et Architects Daughter
+> sont des problèmes dans les polices upstream — non corrigeables côté blog.
 
 ## Résumé des fichiers modifiés
 
 | Fichier | Type de modification |
 |---------|---------------------|
-| `pelicanconf.py` | Ajout plugins `lazy_images` + `mermaid_prerender` |
+| `pelicanconf.py` | Ajout plugins `lazy_images` + `mermaid_prerender` + `html_optimizer` |
 | `publishconf.py` | Commenté `GOOGLE_ANALYTICS`, réactivé `DISQUS_SITENAME` |
 | `themes/Flex/templates/partial/disqus.html` | IntersectionObserver lazy-load |
 | `plugins/lazy_images.py` | **Nouveau** — lazy loading + dimensions auto |
 | `plugins/mermaid_prerender.py` | **Nouveau** — pré-rendu SVG + svgo + cache |
+| `plugins/html_optimizer.py` | **Nouveau** — preconnect + lazy SVGs |
 | `mermaid.config.json` | **Nouveau** — config thème mermaid (handDrawn) |
 | `puppeteer.json` | **Nouveau** — chemin chromium pour mmdc |
 | `content/css/mermaid-dark.css` | Ajout `.mermaid-center` (flex centering) |
 | `content/suckless-ogl-anatomie-frame.md` | Refs images → `.webp`, supprimé `mermaid-init.js` |
 | `content/suckless-ogl-anatomie-frame-en.md` | Refs images → `.webp`, supprimé `mermaid-init.js` |
 | `content/images/suckless-ogl/*.webp` | **Nouveau** — 22 images WebP |
-| `scripts/lighthouse-audit.sh` | **Nouveau** — audit Lighthouse local |
+| `content/images/favicon.ico` | **Nouveau** — favicon 32×32 depuis avatar.gif |
+| `content/css/custom.css` | **Nouveau** — fix h1 sectioned (Firefox warning) |
+| `scripts/lighthouse-audit.sh` | **Nouveau** — audit Lighthouse local + comparaison |
 | `Justfile` | Ajout recette `audit` |
 | `.gitignore` | Ajout `.mermaid-cache/`, `lighthouse-reports/` |
 | `package.json` | Ajout devDeps `lighthouse`, `svgo` |
@@ -243,6 +306,8 @@ just audit python-helloworld.html
 3. Exécute Lighthouse CLI avec Chromium headless (desktop, simulated throttling)
 4. Génère un rapport JSON + HTML dans `lighthouse-reports/`
 5. Affiche un résumé des 6 métriques clés avec indicateurs couleur
+6. **Compare automatiquement** avec le baseline s'il existe
+   (`lighthouse-reports/baseline-before-profiler-fixes.json`)
 
 ### Exemple de sortie
 
@@ -272,6 +337,27 @@ just audit python-helloworld.html
 Les rapports HTML détaillés sont générés dans `lighthouse-reports/` (gitignored).
 Ouvrir le `.report.html` dans un navigateur pour l'analyse complète avec les
 recommandations Lighthouse.
+
+### Méthode de benchmark fiable
+
+Pour des résultats stables, exécuter 3 runs et prendre la médiane :
+
+```bash
+# Lancer le serveur
+python3 -m http.server 9223 -d output &
+
+# 3 runs
+for i in 1 2 3; do
+  npx lighthouse "http://localhost:9223/suckless-ogl-anatomie-frame.html" \
+    --chrome-flags="--headless --no-sandbox" \
+    --chrome-path="$(which chromium)" \
+    --output=json --output-path="lighthouse-reports/run-$i" \
+    --only-categories=performance --preset=desktop --quiet
+done
+
+# Comparer les résultats dans les fichiers run-*.report.json
+kill %1
+```
 
 ## Vérification
 

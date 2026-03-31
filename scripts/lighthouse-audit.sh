@@ -76,3 +76,41 @@ for name, val, unit, threshold, higher_better in metrics:
 echo ""
 echo "📄 Full report: ${REPORT_HTML}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Compare with baseline if it exists
+BASELINE="${OUTPUT_DIR}/baseline-before-profiler-fixes.json"
+if [[ -f "$BASELINE" && "$REPORT_JSON" != "$BASELINE" ]]; then
+  echo ""
+  echo "📈 Comparison with baseline:"
+  python3 << PYEOF
+import json
+with open('${BASELINE}') as f:
+    old = json.load(f)
+with open('${REPORT_JSON}') as f:
+    new = json.load(f)
+oa, na = old['audits'], new['audits']
+
+metrics = [
+    ('Performance Score', 'score', 100, '', True),
+    ('FCP', 'first-contentful-paint', 0.001, 's', False),
+    ('LCP', 'largest-contentful-paint', 0.001, 's', False),
+    ('TBT', 'total-blocking-time', 1, 'ms', False),
+    ('CLS', 'cumulative-layout-shift', 1, '', False),
+    ('Speed Index', 'speed-index', 0.001, 's', False),
+]
+
+for name, key, mult, unit, higher_better in metrics:
+    if key == 'score':
+        ov = old['categories']['performance']['score'] * 100
+        nv = new['categories']['performance']['score'] * 100
+    else:
+        ov = oa[key]['numericValue'] * mult
+        nv = na[key]['numericValue'] * mult
+    diff = nv - ov
+    if higher_better:
+        icon = '📈' if diff > 0 else ('📉' if diff < 0 else '➡️')
+    else:
+        icon = '📈' if diff < 0 else ('📉' if diff > 0 else '➡️')
+    print(f'  {icon} {name:20s}  {ov:>8.2f}{unit} → {nv:>8.2f}{unit}  ({diff:+.2f}{unit})')
+PYEOF
+fi
