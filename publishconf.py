@@ -13,6 +13,6 @@ CATEGORY_FEED_ATOM = "feeds/{slug}.atom.xml"
 DELETE_OUTPUT_DIRECTORY = True
 
 DISQUS_SITENAME = "yoyonel"
-# NOTE: Universal Analytics (UA-) is deprecated since July 2024.
+# NOTE: Universal Analytics (UA-) was sunset July 2024. ID no longer functional.
 # Replace with a GA4 Measurement ID (G-XXXXXXXXXX) if needed.
-GOOGLE_ANALYTICS = "UA-155727660-1"
+# GOOGLE_ANALYTICS = "UA-155727660-1"

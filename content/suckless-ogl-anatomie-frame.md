@@ -14,7 +14,7 @@ JS: mermaid-init.js (top), glossary-tooltip.js
 
 *De `main()` aux photons sur l'écran — une plongée complète dans un moteur [PBR](#glossary-pbr "Physically-Based Rendering — modèle d'éclairage qui simule la physique réelle de la lumière") OpenGL moderne écrit en C.*
 
-![Le rendu final de suckless-ogl — 100 sphères PBR éclairées par IBL]({static}/images/suckless-ogl/reference_image.png)
+![Le rendu final de suckless-ogl — 100 sphères PBR éclairées par IBL]({static}/images/suckless-ogl/reference_image.webp)
 *<center>Le rendu final : 100 sphères métalliques et diélectriques, éclairées par une [HDR](#glossary-hdr "High Dynamic Range — valeurs de couleur supérieures à 1.0 (lumière réaliste)") d'environnement, avec post-processing complet.</center>*
 
 ---
@@ -301,7 +301,7 @@ Le moteur supporte deux stratégies de rendu de sphères. Le **mode par défaut*
 
 Chaque sphère est rendue comme un **simple [quad](#glossary-quad "Rectangle composé de 2 triangles — la primitive 2D de base") aligné à l'écran** (4 vertices, 2 triangles). Le fragment [shader](#glossary-shader "Programme exécuté directement sur le GPU (vertex, fragment, compute)") effectue une **intersection rayon-sphère analytique** par pixel, produisant des sphères mathématiquement parfaites.
 
-![Géométrie AABB du billboard — le quad projeté enveloppe la sphère à l'écran]({static}/images/suckless-ogl/billboard_aabb_geometry.png)
+![Géométrie AABB du billboard — le quad projeté enveloppe la sphère à l'écran]({static}/images/suckless-ogl/billboard_aabb_geometry.webp)
 *<center>Le [vertex shader](#glossary-vertex-shader "Shader qui traite chaque sommet de la géométrie (position, projection)") projette un quad serré autour de la [bounding box](#glossary-aabb "Axis-Aligned Bounding Box — boîte englobante alignée aux axes, pour le culling rapide") à l'écran de la sphère via calcul de tangentes analytiques.</center>*
 
 **Avantages** :
@@ -811,7 +811,7 @@ C'est le cœur du rendu. **Un seul appel de draw rend les 100 sphères** :
 
 Le [fragment shader](#glossary-fragment-shader "Shader qui calcule la couleur de chaque pixel à l'écran") (`pbr_ibl_billboard.frag`) est là où la magie opère. Au lieu de [shader](#glossary-shader "Programme exécuté directement sur le GPU (vertex, fragment, compute)") un [mesh](#glossary-mesh "Ensemble de triangles formant un objet 3D") rastérisé, il **intersecte analytiquement un rayon avec une sphère parfaite** :
 
-![Intersection rayon-sphère — le principe géométrique]({static}/images/suckless-ogl/sphere_intersection.jpg)
+![Intersection rayon-sphère — le principe géométrique]({static}/images/suckless-ogl/sphere_intersection.webp)
 *<center>Intersection rayon-sphère analytique : le [discriminant](#glossary-discriminant "Valeur mathématique (b²−c) déterminant si un rayon touche une sphère") détermine si le pixel touche la sphère.</center>*
 
 ```glsl
@@ -858,7 +858,7 @@ graph TD
 
 #### Anti-aliasing analytique des bords
 
-![Anti-aliasing analytique des sphères — smoothstep sur le discriminant]({static}/images/suckless-ogl/sphere_analytic_aa.jpg)
+![Anti-aliasing analytique des sphères — smoothstep sur le discriminant]({static}/images/suckless-ogl/sphere_analytic_aa.webp)
 *<center>L'anti-aliasing analytique utilise le discriminant comme métrique de distance au bord — pas besoin de [MSAA](#glossary-msaa "Multisample Anti-Aliasing — anti-crénelage géométrique (coûteux, évité ici)") pour des bords lisses.</center>*
 
 ```glsl
@@ -867,12 +867,12 @@ float edgeFactor = smoothstep(0.0, 1.0, discriminant / (2.0 * radius * pixelSize
 FragColor = vec4(color * edgeFactor, edgeFactor);  // alpha prémultiplié
 ```
 
-![Détail de l'anti-aliasing parfait des sphères]({static}/images/suckless-ogl/sphere_perfect_aa_detail.jpg)
+![Détail de l'anti-aliasing parfait des sphères]({static}/images/suckless-ogl/sphere_perfect_aa_detail.webp)
 *<center>Détail en gros plan : les bords des sphères sont parfaitement lisses grâce au [ray-tracing](#glossary-ray-tracing "Technique qui trace des rayons lumineux pour calculer l'intersection avec des objets") analytique.</center>*
 
 #### Projection billboard
 
-![Optimisation de projection AABB des sphères]({static}/images/suckless-ogl/sphere_aabb_optimization_projective.png)
+![Optimisation de projection AABB des sphères]({static}/images/suckless-ogl/sphere_aabb_optimization_projective.webp)
 *<center>Le [vertex shader](#glossary-vertex-shader "Shader qui traite chaque sommet de la géométrie (position, projection)") calcule un quad serré à l'écran via projection tangentielle analytique, gérant 3 cas : caméra dehors, dedans, ou derrière la sphère.</center>*
 
 ---
@@ -917,31 +917,31 @@ graph TD
 Voici le rendu **vue de face** avec différents effets activés individuellement — chaque image montre l'effet isolé appliqué à la même scène :
 
 #### Sans post-processing (brut)
-![Rendu brut sans aucun post-processing]({static}/images/suckless-ogl/ref_front_subtle_none.png)
+![Rendu brut sans aucun post-processing]({static}/images/suckless-ogl/ref_front_subtle_none.webp)
 *<center>Image brute en sortie du rendu [PBR](#glossary-pbr "Physically-Based Rendering — modèle d'éclairage qui simule la physique réelle de la lumière") — pas de post-traitement appliqué.</center>*
 
 #### FXAA (anti-aliasing rapide)
-![Rendu avec FXAA activé]({static}/images/suckless-ogl/ref_front_subtle_fxaa.png)
+![Rendu avec FXAA activé]({static}/images/suckless-ogl/ref_front_subtle_fxaa.webp)
 *<center>[FXAA](#glossary-fxaa "Fast Approximate Anti-Aliasing — anti-crénelage rapide en post-process sur l'image finale") (Fast Approximate Anti-Aliasing) — lisse les bords sans coût de [MSAA](#glossary-msaa "Multisample Anti-Aliasing — anti-crénelage géométrique (coûteux, évité ici)").</center>*
 
 #### Bloom
-![Rendu avec Bloom activé]({static}/images/suckless-ogl/ref_front_subtle_bloom.png)
+![Rendu avec Bloom activé]({static}/images/suckless-ogl/ref_front_subtle_bloom.webp)
 *<center>[Bloom](#glossary-bloom "Effet de halo lumineux autour des zones très brillantes (diffusion lumineuse de l'objectif)") — les zones lumineuses débordent, simulant la diffusion lumineuse d'un objectif.</center>*
 
 #### Depth of Field (Profondeur de champ)
-![Rendu avec Depth of Field activé]({static}/images/suckless-ogl/ref_front_subtle_dof.png)
+![Rendu avec Depth of Field activé]({static}/images/suckless-ogl/ref_front_subtle_dof.webp)
 *<center>Profondeur de champ — les objets hors focus sont floutés comme avec un vrai objectif.</center>*
 
 #### Auto-Exposure
-![Rendu avec Auto-Exposure activé]({static}/images/suckless-ogl/ref_front_subtle_auto_exposure.png)
+![Rendu avec Auto-Exposure activé]({static}/images/suckless-ogl/ref_front_subtle_auto_exposure.webp)
 *<center>[Auto-exposition](#glossary-auto-exposition "Adaptation automatique de la luminosité de la scène (simule l'iris de l'œil)") — le moteur adapte l'exposition comme l'œil humain s'adaptant à la luminosité.</center>*
 
 #### Motion Blur
-![Rendu avec Motion Blur activé]({static}/images/suckless-ogl/ref_front_subtle_motion_blur.png)
+![Rendu avec Motion Blur activé]({static}/images/suckless-ogl/ref_front_subtle_motion_blur.webp)
 *<center>[Motion blur](#glossary-motion-blur "Flou de mouvement par pixel simulant l'obturateur d'une caméra") par pixel — utilise les vecteurs de vélocité pour simuler le flou de mouvement cinématique.</center>*
 
 #### Profil cinématique Sony A7S III
-![Rendu avec profil Sony A7S III]({static}/images/suckless-ogl/ref_front_sony_a7siii.png)
+![Rendu avec profil Sony A7S III]({static}/images/suckless-ogl/ref_front_sony_a7siii.webp)
 *<center>Profil photographique complet Sony A7S III — [color grading](#glossary-color-grading "Ajustement créatif des couleurs (saturation, contraste, gamma, teinte)"), balance, exposition et LUT 3D combinés pour un rendu cinématique.</center>*
 
 ### 10.3 — Optimisation shader par compilation conditionnelle
@@ -962,12 +962,12 @@ Un **cache LRU de 32 entrées** stocke les variantes compilées pour différente
 
 ### 10.4 — Courbes de tonemapping
 
-![Courbes de tonemapping comparées]({static}/images/suckless-ogl/tonemapping_curves.png)
+![Courbes de tonemapping comparées]({static}/images/suckless-ogl/tonemapping_curves.webp)
 *<center>Comparaison des courbes de [tonemapping](#glossary-tonemapping "Conversion des couleurs HDR (illimitées) en LDR affichable (0–255)") disponibles — le passage de [HDR](#glossary-hdr "High Dynamic Range — valeurs de couleur supérieures à 1.0 (lumière réaliste)") linéaire à LDR affichable.</center>*
 
 ### 10.5 — Adaptation d'exposition
 
-![Adaptation d'exposition au fil du temps]({static}/images/suckless-ogl/exposure_adaptation.jpg)
+![Adaptation d'exposition au fil du temps]({static}/images/suckless-ogl/exposure_adaptation.webp)
 *<center>L'auto-exposition adapte progressivement la luminosité de la frame, comme l'iris de l'œil.</center>*
 
 ---
@@ -1055,14 +1055,14 @@ Le moteur supporte des captures automatisées depuis différents angles de camé
 
 <table style="width:100%; border-collapse:collapse; border:none;">
 <tr>
-<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_front.png" alt="Vue de face" style="max-width:100%;"><br><em>Face</em></td>
-<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_left.png" alt="Vue de gauche" style="max-width:100%;"><br><em>Gauche</em></td>
-<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_right.png" alt="Vue de droite" style="max-width:100%;"><br><em>Droite</em></td>
+<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_front.webp" alt="Vue de face" style="max-width:100%;"><br><em>Face</em></td>
+<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_left.webp" alt="Vue de gauche" style="max-width:100%;"><br><em>Gauche</em></td>
+<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_right.webp" alt="Vue de droite" style="max-width:100%;"><br><em>Droite</em></td>
 </tr>
 <tr>
-<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_top.png" alt="Vue du dessus" style="max-width:100%;"><br><em>Dessus</em></td>
-<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_bottom.png" alt="Vue du dessous" style="max-width:100%;"><br><em>Dessous</em></td>
-<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_front_sony_a7siii.png" alt="Profil Sony A7S III" style="max-width:100%;"><br><em>Sony A7S III</em></td>
+<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_top.webp" alt="Vue du dessus" style="max-width:100%;"><br><em>Dessus</em></td>
+<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_bottom.webp" alt="Vue du dessous" style="max-width:100%;"><br><em>Dessous</em></td>
+<td style="text-align:center; padding:8px; border:none;"><img src="/images/suckless-ogl/ref_front_sony_a7siii.webp" alt="Profil Sony A7S III" style="max-width:100%;"><br><em>Sony A7S III</em></td>
 </tr>
 </table>
 
