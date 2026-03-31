@@ -29,6 +29,7 @@ just dev        # Serveur local avec live-reload → http://localhost:8000
 | `just lint` | Vérifie le code avec Ruff |
 | `just format-check` | Vérifie le formatage avec Ruff |
 | `just fix` | Auto-fix lint + formatage |
+| `just audit` | Audit Lighthouse performance |
 
 ## Structure du projet
 
@@ -39,7 +40,10 @@ just dev        # Serveur local avec live-reload → http://localhost:8000
 │   ├── js/              # JS custom (ex: asciinema-player)
 │   └── *.md             # Articles
 ├── plugins/             # Plugins Pelican locaux
-│   └── css_js_injector.py
+│   ├── css_js_injector.py
+│   ├── lazy_images.py
+│   ├── mermaid_prerender.py
+│   └── html_optimizer.py
 ├── themes/
 │   └── Flex/            # Thème (git submodule)
 ├── Justfile             # Point d'entrée unique
@@ -69,9 +73,10 @@ Deux workflows GitHub Actions :
 
 | Workflow | Trigger | Rôle |
 |---|---|---|
-| `deploy.yml` | Push sur `master`/`main` | Build + déploie sur GitHub Pages |
+| `deploy.yml` | Push sur `master`/`main` | Build + déploie sur GitHub Pages + audit Lighthouse post-deploy |
 | `preview.yml` | Pull Request | Build + déploie une preview sur surge.sh |
 | `lint.yml` | Push + Pull Request | Vérifie lint et formatage avec Ruff |
+| `performance.yml` | Push + Pull Request | Audit Lighthouse (médiane 3 runs) + commentaire PR |
 
 ### Secrets GitHub requis
 
@@ -142,6 +147,6 @@ JS: mon-script.js (top)
 
 ## ⚠️ Points d'attention
 
-- **Google Analytics** : le tracking ID `UA-155727660-1` configuré dans `publishconf.py` est Universal Analytics (sunset juillet 2024). Pour conserver les analytics, le remplacer par un Measurement ID GA4 (`G-XXXXXXXXXX`).
 - **Thème Flex** : le thème est un git submodule. Après un `git clone`, penser à `git submodule update --init --recursive` (ou utiliser `just setup` qui le fait automatiquement).
-- **Disqus** : les commentaires utilisent le sitename `yoyonel`. Vérifier que le site est toujours actif sur [disqus.com/admin](https://disqus.com/admin/).
+- **Disqus** : les commentaires utilisent le sitename `yoyonel`, chargé en lazy-load via IntersectionObserver.
+- **Performance** : voir [docs/performance-optimization.md](docs/performance-optimization.md) pour le détail des optimisations (score Lighthouse 39 → 80, LCP 6.8s → 1.6s).
