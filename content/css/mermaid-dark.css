@@ -26,6 +26,13 @@ pre.mermaid {
   -webkit-filter: none !important;
 }
 
+/* Flex wrapper: centers SVG within scrollable pre without JS (no CLS) */
+pre.mermaid .mermaid-center {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 100%;
+}
+
 /* SVG keeps its intrinsic size — container scrolls if wider than article */
 pre.mermaid svg {
   max-width: none;

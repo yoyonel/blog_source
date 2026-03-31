@@ -47,6 +47,10 @@ build:
 publish:
     uv run pelican content -o output -s publishconf.py
 
+# Run Lighthouse performance audit (builds if needed)
+audit page="suckless-ogl-anatomie-frame.html":
+    ./scripts/lighthouse-audit.sh {{ page }}
+
 # Clean generated output
 clean:
     rm -rf output

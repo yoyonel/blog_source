@@ -4,6 +4,7 @@ output/
 __pycache__/
 *.pid
 .mermaid-cache/
+lighthouse-reports/
 
 # Dependencies (uv)
 .venv/

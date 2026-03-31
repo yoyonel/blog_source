@@ -35,6 +35,11 @@ _MERMAID_RE = re.compile(
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _MMDC = shutil.which("mmdc")
+_SVGO = shutil.which("svgo") or os.path.join(
+    _PROJECT_ROOT, "node_modules", ".bin", "svgo"
+)
+if _SVGO and not os.path.isfile(_SVGO):
+    _SVGO = None
 _MERMAID_CONFIG = os.path.join(_PROJECT_ROOT, "mermaid.config.json")
 _PUPPETEER_CONFIG = os.path.join(_PROJECT_ROOT, "puppeteer.json")
 _CACHE_DIR = os.path.join(_PROJECT_ROOT, ".mermaid-cache")
@@ -44,11 +49,10 @@ _MAX_WORKERS = 4
 _svg_cache: dict[str, str] = {}
 
 # Inline script injected after pre-rendered SVGs to:
-# 1. Center horizontal scroll of wide diagrams
-# 2. Move Gantt task labels to the right of their bars
+# Move Gantt task labels to the right of their bars (no CLS impact)
 _POST_RENDER_SCRIPT = """<script>
 (function(){
-  function fixMermaid(){
+  function fixGantt(){
     document.querySelectorAll("pre.mermaid svg").forEach(function(svg){
       var rects=svg.querySelectorAll("rect.task");
       var texts=svg.querySelectorAll(
@@ -64,14 +68,10 @@ _POST_RENDER_SCRIPT = """<script>
         }
       }
     });
-    document.querySelectorAll("pre.mermaid").forEach(function(c){
-      var overflow=c.scrollWidth-c.clientWidth;
-      if(overflow>0) c.scrollLeft=overflow/2;
-    });
   }
   if(document.readyState==="loading")
-    document.addEventListener("DOMContentLoaded",fixMermaid);
-  else fixMermaid();
+    document.addEventListener("DOMContentLoaded",fixGantt);
+  else fixGantt();
 })();
 </script>"""
 
@@ -140,6 +140,18 @@ def _render_svg(mermaid_code):
 
         with open(out_path, encoding="utf-8") as f:
             svg = f.read()
+
+        # Optimize SVG with svgo if available (~60% size reduction)
+        if _SVGO:
+            opt_result = subprocess.run(
+                [_SVGO, out_path, "-o", out_path],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if opt_result.returncode == 0:
+                with open(out_path, encoding="utf-8") as f:
+                    svg = f.read()
 
         # Strip XML declaration if present
         svg = re.sub(r"<\?xml[^?]*\?>\s*", "", svg)
@@ -266,7 +278,13 @@ def prerender_mermaid(path, context):
         if svg is None:
             continue  # Keep original block as fallback
         unique_svg = _assign_unique_ids(svg, len(diagrams) - 1 - idx)
-        replacement = f'<pre class="mermaid">{unique_svg}</pre>'
+        # Wrap in a flex container so CSS can center wide diagrams
+        # without JS scrollLeft (which causes CLS)
+        replacement = (
+            '<pre class="mermaid">'
+            f'<span class="mermaid-center">{unique_svg}</span>'
+            "</pre>"
+        )
         new_content = new_content[: m.start()] + replacement + new_content[m.end() :]
 
     if new_content != content:
