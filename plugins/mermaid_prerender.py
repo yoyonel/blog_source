@@ -43,6 +43,38 @@ _MAX_WORKERS = 4
 # In-memory cache for same-process dedup (FR + EN share diagrams)
 _svg_cache: dict[str, str] = {}
 
+# Inline script injected after pre-rendered SVGs to:
+# 1. Center horizontal scroll of wide diagrams
+# 2. Move Gantt task labels to the right of their bars
+_POST_RENDER_SCRIPT = """<script>
+(function(){
+  function fixMermaid(){
+    document.querySelectorAll("pre.mermaid svg").forEach(function(svg){
+      var rects=svg.querySelectorAll("rect.task");
+      var texts=svg.querySelectorAll(
+        "text.taskText,text.taskTextOutsideRight,text.taskTextOutsideLeft"
+      );
+      if(rects.length&&rects.length===texts.length){
+        for(var i=0;i<texts.length;i++){
+          var rx=parseFloat(rects[i].getAttribute("x"));
+          var rw=parseFloat(rects[i].getAttribute("width"));
+          texts[i].setAttribute("x",rx+rw+5);
+          texts[i].style.textAnchor="start";
+          texts[i].setAttribute("class","taskTextOutsideRight");
+        }
+      }
+    });
+    document.querySelectorAll("pre.mermaid").forEach(function(c){
+      var overflow=c.scrollWidth-c.clientWidth;
+      if(overflow>0) c.scrollLeft=overflow/2;
+    });
+  }
+  if(document.readyState==="loading")
+    document.addEventListener("DOMContentLoaded",fixMermaid);
+  else fixMermaid();
+})();
+</script>"""
+
 
 def _cache_key(mermaid_code):
     """SHA256 of mermaid source + config for cache invalidation."""
@@ -238,6 +270,10 @@ def prerender_mermaid(path, context):
         new_content = new_content[: m.start()] + replacement + new_content[m.end() :]
 
     if new_content != content:
+        # Inject post-render script for scroll centering + Gantt fixes
+        new_content = new_content.replace(
+            "</body>", _POST_RENDER_SCRIPT + "\n</body>", 1
+        )
         with open(path, "w", encoding="utf-8") as f:
             f.write(new_content)
 
