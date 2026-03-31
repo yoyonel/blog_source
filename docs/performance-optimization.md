@@ -91,8 +91,44 @@ _IMG_RE = re.compile(r"<img\b(?![^>]*\bloading\s*=)", re.IGNORECASE)
 Activé dans `pelicanconf.py` :
 
 ```python
-PLUGINS = ["css_js_injector", "lazy_images", "i18n_subsites"]
+PLUGINS = ["css_js_injector", "lazy_images", "mermaid_prerender", "i18n_subsites"]
 ```
+
+### 5. Mermaid — pré-rendu SVG au build (suppression du JS client)
+
+**Fichier** : `plugins/mermaid_prerender.py` (nouveau plugin)
+
+La page contenait 17 diagrammes mermaid rendus côté client via `mermaid.min.js`
+(~800 Ko). Le chargement + exécution de ce script bloquait le rendu pendant ~5s.
+
+**Solution** : Un plugin Pelican qui pré-rend les blocs `<pre class="mermaid">`
+en SVG inline via `mmdc` (mermaid-cli) au moment du build.
+
+**Optimisations du plugin** :
+
+| Technique | Effet |
+|-----------|-------|
+| Cache disque SHA256 (`.mermaid-cache/`) | Build incrémental quasi-instantané |
+| Rendu parallèle (ThreadPoolExecutor, 4 workers) | Cold build 138s → 69s |
+| Cache mémoire in-process | Déduplique FR/EN si diagrammes identiques |
+| IDs SVG uniques par diagramme | Évite les collisions CSS/JS |
+
+**Fichiers de configuration** :
+
+- `mermaid.config.json` : variables de thème (`look: "handDrawn"`, couleurs, polices)
+  extraites de `mermaid-init.js`
+- `puppeteer.json` : chemin vers chromium pour mmdc
+
+**Temps de build** :
+
+| Scénario | Durée |
+|----------|-------|
+| Sans plugin (avant) | ~3s |
+| Cold build (cache vide) | ~69s |
+| Warm build (cache plein) | ~2.5s |
+
+**Impact page** : supprime ~800 Ko de JS + ~5s de rendu client → diagrammes
+visibles instantanément au chargement de la page.
 
 ## Résumé des fichiers modifiés
 
@@ -102,8 +138,11 @@ PLUGINS = ["css_js_injector", "lazy_images", "i18n_subsites"]
 | `publishconf.py` | Commenté `GOOGLE_ANALYTICS`, réactivé `DISQUS_SITENAME` |
 | `themes/Flex/templates/partial/disqus.html` | IntersectionObserver lazy-load |
 | `plugins/lazy_images.py` | **Nouveau** — plugin lazy loading images |
-| `content/suckless-ogl-anatomie-frame.md` | Refs images → `.webp` |
-| `content/suckless-ogl-anatomie-frame-en.md` | Refs images → `.webp` |
+| `plugins/mermaid_prerender.py` | **Nouveau** — pré-rendu SVG des diagrammes mermaid |
+| `mermaid.config.json` | **Nouveau** — config thème mermaid (handDrawn) |
+| `puppeteer.json` | **Nouveau** — chemin chromium pour mmdc |
+| `content/suckless-ogl-anatomie-frame.md` | Refs images → `.webp`, supprimé `mermaid-init.js` |
+| `content/suckless-ogl-anatomie-frame-en.md` | Refs images → `.webp`, supprimé `mermaid-init.js` |
 | `content/images/suckless-ogl/*.webp` | **Nouveau** — 22 images WebP |
 
 ## Vérification
@@ -123,6 +162,10 @@ grep 'IntersectionObserver' output/suckless-ogl-anatomie-frame.html
 
 # Pas de Google Analytics
 grep -c 'google-analytics\|GoogleAnalyticsObject' output/suckless-ogl-anatomie-frame.html
+
+# 17 SVG mermaid inline, 0 mermaid.min.js
+grep -c '<svg' output/suckless-ogl-anatomie-frame.html
+grep -c 'mermaid.min.js' output/suckless-ogl-anatomie-frame.html
 ```
 
 ## Améliorations futures possibles
