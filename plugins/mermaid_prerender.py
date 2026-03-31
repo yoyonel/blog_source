@@ -51,7 +51,8 @@ _svg_cache: dict[str, str] = {}
 # Inline script injected after pre-rendered SVGs to:
 # 1. Center horizontal scroll of wide diagrams
 # 2. Move Gantt task labels to the right of their bars
-# Note: scrollLeft does NOT cause CLS (it's an internal scroll, not a layout shift)
+# Uses window.load (not DOMContentLoaded) to avoid Firefox warning:
+# "Layout was forced before the page was fully loaded"
 _POST_RENDER_SCRIPT = """<script>
 (function(){
   function fixMermaid(){
@@ -75,9 +76,8 @@ _POST_RENDER_SCRIPT = """<script>
       if(overflow>0) c.scrollLeft=overflow/2;
     });
   }
-  if(document.readyState==="loading")
-    document.addEventListener("DOMContentLoaded",fixMermaid);
-  else fixMermaid();
+  if(document.readyState==="complete") fixMermaid();
+  else window.addEventListener("load",fixMermaid);
 })();
 </script>"""
 

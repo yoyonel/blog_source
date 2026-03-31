@@ -1,0 +1,11 @@
+/* Global custom styles for Bloggy le Blog */
+
+/* Fix Firefox warning: "Found a sectioned h1 element with no specified
+   font-size or margin properties"
+   See: https://developer.mozilla.org/docs/Web/HTML/Element/Heading_Elements */
+article h1,
+aside h1,
+section h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
