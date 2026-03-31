@@ -2,7 +2,23 @@
 
 > Date : 2026-03-31
 > Branche : `perf/optimize-page-load`
-> Page de test : `suckless-ogl-anatomie-frame.html` (~10-15s → ~2-3s)
+> Page de test : `suckless-ogl-anatomie-frame.html`
+> Preview : [bloggy-perf-test.surge.sh](https://bloggy-perf-test.surge.sh/suckless-ogl-anatomie-frame.html)
+
+## Résultats — Core Web Vitals (Lighthouse, desktop)
+
+| Métrique | Avant optimisation | Après optimisation | Seuil « bon » |
+|----------|-------------------:|-------------------:|:--------------:|
+| **Performance Score** | 35 | **80** | ≥ 90 |
+| **First Contentful Paint (FCP)** | 2.95 s | **1.74 s** 🟢 | ≤ 1.8 s |
+| **Largest Contentful Paint (LCP)** | 3.36 s | **2.21 s** 🟢 | ≤ 2.5 s |
+| **Total Blocking Time (TBT)** | 316 ms | **41 ms** 🟢 | ≤ 200 ms |
+| **Cumulative Layout Shift (CLS)** | 0.33 | **0.02** 🟢 | ≤ 0.1 |
+| **Speed Index (SI)** | 2.95 s | **1.74 s** 🟢 | ≤ 3.4 s |
+
+> Mesures réalisées via `just audit` (Lighthouse CLI, Chromium headless, desktop
+> simulated throttling). Le temps de chargement initial de la page était > 10 s
+> (Network tab, Brave DevTools) avant toute optimisation.
 
 ## Contexte
 
@@ -76,17 +92,28 @@ Les références ont été mises à jour dans les deux articles (FR + EN).
 Les fichiers PNG/JPG originaux sont conservés dans le repo comme backup mais ne
 sont plus référencés par aucun article.
 
-### 4. Images — lazy loading automatique
+### 4. Images — lazy loading + dimensions automatiques (anti-CLS)
 
 **Fichier** : `plugins/lazy_images.py` (nouveau plugin)
 
-Plugin Pelican qui ajoute `loading="lazy"` à toutes les balises `<img>` du HTML
-généré qui n'ont pas déjà un attribut `loading`.
+Plugin Pelican qui post-traite le HTML généré pour :
+
+1. **`loading="lazy"`** sur toutes les `<img>` qui n'ont pas déjà l'attribut
+2. **`width` / `height`** auto-détectés depuis les fichiers images locaux
+
+L'ajout des dimensions est essentiel pour le **CLS** : sans elles, le navigateur
+ne réserve pas d'espace, puis décale tout le contenu quand l'image se charge.
 
 ```python
-# Regex qui matche les <img> sans attribut loading
-_IMG_RE = re.compile(r"<img\b(?![^>]*\bloading\s*=)", re.IGNORECASE)
+# Détection des dimensions sans dépendance externe
+# Supporte : WebP (VP8/VP8L/VP8X), PNG, GIF, JPEG
+w, h = _get_image_dimensions(img_path)
+# Résultat dans le HTML :
+# <img width="1024" height="768" loading="lazy" src="..." alt="...">
 ```
+
+> Le plugin lit uniquement les headers binaires des fichiers (30 octets max)
+> pour extraire les dimensions — aucune bibliothèque d'imagerie requise.
 
 Activé dans `pelicanconf.py` :
 
@@ -112,6 +139,8 @@ en SVG inline via `mmdc` (mermaid-cli) au moment du build.
 | Rendu parallèle (ThreadPoolExecutor, 4 workers) | Cold build 138s → 69s |
 | Cache mémoire in-process | Déduplique FR/EN si diagrammes identiques |
 | IDs SVG uniques par diagramme | Évite les collisions CSS/JS |
+| **svgo** post-processing | **-60%** taille SVG (2.6 Mo → 1.0 Mo) |
+| Wrapper CSS flex (`.mermaid-center`) | Centrage sans JS → **CLS = 0** |
 
 **Fichiers de configuration** :
 
@@ -124,36 +153,136 @@ en SVG inline via `mmdc` (mermaid-cli) au moment du build.
 | Scénario | Durée |
 |----------|-------|
 | Sans plugin (avant) | ~3s |
-| Cold build (cache vide) | ~69s |
+| Cold build (cache vide, mmdc + svgo) | ~105s |
 | Warm build (cache plein) | ~2.5s |
 
 **Impact page** : supprime ~800 Ko de JS + ~5s de rendu client → diagrammes
 visibles instantanément au chargement de la page.
 
+#### Centrage CSS des diagrammes larges (anti-CLS)
+
+L'ancien `mermaid-init.js` centrait les diagrammes via `scrollLeft = overflow / 2`
+en JavaScript — ce qui provoquait un **layout shift** visible (CLS = 0.33).
+
+Le plugin injecte maintenant un wrapper `<span class="mermaid-center">` autour de
+chaque SVG, centré en CSS pur :
+
+```css
+/* content/css/mermaid-dark.css */
+pre.mermaid .mermaid-center {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 100%;
+}
+```
+
+Le SVG est centré dès le premier paint, sans aucun recalcul JavaScript.
+
+#### Optimisation SVG via svgo
+
+Chaque SVG rendu par mmdc est optimisé automatiquement par
+[svgo](https://github.com/nicolo-ribaudo/svgo) (installé en devDependency npm) :
+
+```
+Original : 2.6 Mo de SVG inline (17 diagrammes handDrawn)
+Optimisé : 1.0 Mo (-60%)
+HTML total : 2.76 Mo → 1.19 Mo
+```
+
+L'optimisation est effectuée **avant** la mise en cache, donc le cold build la
+fait une seule fois par diagramme.
+
+#### Script Gantt résiduel
+
+Un petit script inline est injecté avant `</body>` pour repositionner les labels
+des tâches Gantt à droite de leurs barres. Cette modification n'a aucun impact
+CLS car elle ne change que des attributs SVG internes (position de texte).
+
 ## Résumé des fichiers modifiés
 
 | Fichier | Type de modification |
 |---------|---------------------|
-| `pelicanconf.py` | Ajout plugin `lazy_images`, commentaire Disqus |
+| `pelicanconf.py` | Ajout plugins `lazy_images` + `mermaid_prerender` |
 | `publishconf.py` | Commenté `GOOGLE_ANALYTICS`, réactivé `DISQUS_SITENAME` |
 | `themes/Flex/templates/partial/disqus.html` | IntersectionObserver lazy-load |
-| `plugins/lazy_images.py` | **Nouveau** — plugin lazy loading images |
-| `plugins/mermaid_prerender.py` | **Nouveau** — pré-rendu SVG des diagrammes mermaid |
+| `plugins/lazy_images.py` | **Nouveau** — lazy loading + dimensions auto |
+| `plugins/mermaid_prerender.py` | **Nouveau** — pré-rendu SVG + svgo + cache |
 | `mermaid.config.json` | **Nouveau** — config thème mermaid (handDrawn) |
 | `puppeteer.json` | **Nouveau** — chemin chromium pour mmdc |
+| `content/css/mermaid-dark.css` | Ajout `.mermaid-center` (flex centering) |
 | `content/suckless-ogl-anatomie-frame.md` | Refs images → `.webp`, supprimé `mermaid-init.js` |
 | `content/suckless-ogl-anatomie-frame-en.md` | Refs images → `.webp`, supprimé `mermaid-init.js` |
 | `content/images/suckless-ogl/*.webp` | **Nouveau** — 22 images WebP |
+| `scripts/lighthouse-audit.sh` | **Nouveau** — audit Lighthouse local |
+| `Justfile` | Ajout recette `audit` |
+| `.gitignore` | Ajout `.mermaid-cache/`, `lighthouse-reports/` |
+| `package.json` | Ajout devDeps `lighthouse`, `svgo` |
+
+## Audit de performances local
+
+Un script Lighthouse CLI permet de **mesurer les Core Web Vitals localement**
+avant chaque push, sans dépendre d'outils en ligne.
+
+### Usage
+
+```bash
+# Auditer la page par défaut (suckless-ogl-anatomie-frame.html)
+just audit
+
+# Auditer une page spécifique
+just audit python-helloworld.html
+
+# Équivalent direct
+./scripts/lighthouse-audit.sh suckless-ogl-anatomie-frame.html
+```
+
+### Ce que fait le script
+
+1. Build le site si `output/` n'existe pas
+2. Lance un serveur HTTP local (Python `http.server`)
+3. Exécute Lighthouse CLI avec Chromium headless (desktop, simulated throttling)
+4. Génère un rapport JSON + HTML dans `lighthouse-reports/`
+5. Affiche un résumé des 6 métriques clés avec indicateurs couleur
+
+### Exemple de sortie
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Core Web Vitals — suckless-ogl-anatomie-frame.html
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🟠 Performance Score                 80.00  (good: ≥90)
+  🟢 First Contentful Paint             1.74s  (good: ≤1.8s)
+  🟢 Largest Contentful Paint           2.21s  (good: ≤2.5s)
+  🟢 Total Blocking Time               41.00ms  (good: ≤200ms)
+  🟢 Cumulative Layout Shift            0.02  (good: ≤0.1)
+  🟢 Speed Index                        1.74s  (good: ≤3.4s)
+
+📄 Full report: lighthouse-reports/suckless-ogl-anatomie-frame.report.html
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Prérequis
+
+- `chromium` dans le PATH (utilisé en headless)
+- `lighthouse` (npm devDependency, installé via `npm install`)
+- `python3` (pour le serveur HTTP local)
+
+### Rapports
+
+Les rapports HTML détaillés sont générés dans `lighthouse-reports/` (gitignored).
+Ouvrir le `.report.html` dans un navigateur pour l'analyse complète avec les
+recommandations Lighthouse.
 
 ## Vérification
 
 Après `just build`, vérifier dans le HTML généré :
 
 ```bash
-# 22 images avec lazy loading
+# Images avec lazy loading + dimensions
 grep -c 'loading="lazy"' output/suckless-ogl-anatomie-frame.html
+grep -o 'width="[0-9]*" height="[0-9]*"' output/suckless-ogl-anatomie-frame.html | head -5
 
-# 21 refs WebP, 0 PNG/JPG
+# Refs WebP, 0 PNG/JPG
 grep -c '\.webp' output/suckless-ogl-anatomie-frame.html
 grep -c 'suckless-ogl.*\.png\|suckless-ogl.*\.jpg' output/suckless-ogl-anatomie-frame.html
 
@@ -166,11 +295,34 @@ grep -c 'google-analytics\|GoogleAnalyticsObject' output/suckless-ogl-anatomie-f
 # 17 SVG mermaid inline, 0 mermaid.min.js
 grep -c '<svg' output/suckless-ogl-anatomie-frame.html
 grep -c 'mermaid.min.js' output/suckless-ogl-anatomie-frame.html
+
+# Taille HTML (devrait être ~1.2 Mo grâce à svgo)
+wc -c output/suckless-ogl-anatomie-frame.html
+
+# Centrage CSS (pas de scrollLeft JS)
+grep -c 'mermaid-center' output/suckless-ogl-anatomie-frame.html
+grep -c 'scrollLeft' output/suckless-ogl-anatomie-frame.html
+
+# Audit Lighthouse complet
+just audit
 ```
+
+## Glossaire — Core Web Vitals
+
+| Métrique | Quoi ? | Bon seuil |
+|----------|--------|-----------|
+| **LCP** (Largest Contentful Paint) | Temps avant que le plus grand élément visible soit rendu | ≤ 2.5 s |
+| **CLS** (Cumulative Layout Shift) | Somme des décalages visuels non attendus pendant le chargement | ≤ 0.1 |
+| **INP** (Interaction to Next Paint) | Délai entre un clic/tap et la réponse visuelle | ≤ 200 ms |
+| **FCP** (First Contentful Paint) | Temps avant le premier pixel de contenu | ≤ 1.8 s |
+| **TBT** (Total Blocking Time) | Temps cumulé où le thread principal est bloqué (> 50ms) | ≤ 200 ms |
+| **SI** (Speed Index) | Vitesse à laquelle le contenu visible se remplit | ≤ 3.4 s |
 
 ## Améliorations futures possibles
 
+- Atteindre un score Performance ≥ 90 (actuellement 80)
 - Supprimer les fichiers PNG/JPG originaux du repo (économiser ~14 Mo dans git)
 - Remplacer Disqus par [giscus](https://giscus.app/) (GitHub Discussions, sans tracker)
 - Ajouter `<link rel="preconnect">` pour Google Fonts
 - Mettre en place un analytics léger (Plausible / Cloudflare Web Analytics)
+- Intégrer `just audit` dans la CI (GitHub Actions) avec seuils de régression
