@@ -409,6 +409,47 @@ just audit
 - Atteindre un score Performance ≥ 90 (actuellement 80)
 - Supprimer les fichiers PNG/JPG originaux du repo (économiser ~14 Mo dans git)
 - Remplacer Disqus par [giscus](https://giscus.app/) (GitHub Discussions, sans tracker)
-- Ajouter `<link rel="preconnect">` pour Google Fonts
 - Mettre en place un analytics léger (Plausible / Cloudflare Web Analytics)
-- Intégrer `just audit` dans la CI (GitHub Actions) avec seuils de régression
+
+## CI — Audits Lighthouse automatiques
+
+Deux workflows GitHub Actions surveillent les performances :
+
+### `performance.yml` — Audit sur chaque PR et push master
+
+- **Déclencheur** : `pull_request` (opened/synchronize/reopened) + `push` sur master/main
+- **Process** :
+  1. Build le site en local (pelicanconf.py)
+  2. Lance un serveur HTTP local
+  3. Exécute 3 runs Lighthouse (desktop, simulated throttling)
+  4. Calcule la **médiane** des 3 runs
+  5. Poste un **commentaire PR** avec tableau de métriques
+  6. Échoue si le score perf est **< 50**
+- **Artefacts** : Rapports JSON + HTML conservés 30 jours
+
+### `deploy.yml` — Audit post-déploiement sur le site live
+
+- **Déclencheur** : après le job `build-deploy` (push sur master)
+- **Process** :
+  1. Attend 30s la propagation du déploiement GitHub Pages
+  2. Exécute 3 runs Lighthouse contre `https://yoyonel.github.io/`
+  3. Calcule la médiane et affiche dans le **Job Summary**
+- **Artefacts** : Rapports JSON + HTML conservés 30 jours
+
+### Seuils
+
+| Métrique | Seuil bon | Seuil CI (échec) |
+|----------|-----------|------------------|
+| Performance Score | ≥ 90 | < 50 |
+| FCP | ≤ 1.8 s | — |
+| LCP | ≤ 2.5 s | — |
+| TBT | ≤ 200 ms | — |
+| CLS | ≤ 0.1 | — |
+| SI | ≤ 3.4 s | — |
+
+### Usage local
+
+```bash
+# Lancer un audit Lighthouse local
+just audit
+```
