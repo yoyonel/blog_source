@@ -7,7 +7,7 @@ description: Plongée technique illustrée dans le moteur de rendu PBR suckless-
 tags: OpenGL, C, PBR, IBL, Rendu 3D, GLSL, Ray-Tracing, Post-Processing, Développement
 category: Développement
 CSS: mermaid-dark.css, glossary-tooltip.css
-JS: mermaid-init.js (top), glossary-tooltip.js
+JS: glossary-tooltip.js
 ---
 
 # Anatomie d'une frame : le cycle de vie complet de suckless-ogl

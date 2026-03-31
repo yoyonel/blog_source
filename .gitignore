@@ -3,6 +3,7 @@ output/
 *.pyc
 __pycache__/
 *.pid
+.mermaid-cache/
 
 # Dependencies (uv)
 .venv/

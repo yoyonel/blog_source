@@ -37,7 +37,7 @@ DISQUS_SITENAME = "yoyonel"
 
 # Plugins
 PLUGIN_PATHS = ["plugins"]
-PLUGINS = ["css_js_injector", "lazy_images", "i18n_subsites"]
+PLUGINS = ["css_js_injector", "lazy_images", "mermaid_prerender", "i18n_subsites"]
 
 # i18n subsites
 JINJA_ENVIRONMENT = {
