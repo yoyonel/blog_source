@@ -25,3 +25,4 @@ blog_deploy_key*
 
 # OS
 .DS_Store
+lighthouse-reports/
