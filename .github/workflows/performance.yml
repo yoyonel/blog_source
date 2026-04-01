@@ -1,0 +1,174 @@
+name: Performance Audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [master, main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq chromium-browser
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          uv sync
+          npm install
+
+      - name: Build site
+        run: uv run pelican content -o output -s pelicanconf.py
+
+      - name: Run Lighthouse audit
+        id: audit
+        run: |
+          # Serve site locally
+          python3 -m http.server 9222 -d output &>/dev/null &
+          sleep 2
+
+          SLUG="suckless-ogl-anatomie-frame.html"
+          CHROMIUM_PATH=$(which chromium-browser || which chromium)
+          mkdir -p lighthouse-reports
+
+          # 3 runs for stable median
+          for i in 1 2 3; do
+            npx lighthouse "http://localhost:9222/${SLUG}" \
+              --chrome-flags="--headless --no-sandbox --disable-gpu" \
+              --chrome-path="${CHROMIUM_PATH}" \
+              --output=json \
+              --output-path="lighthouse-reports/run-${i}" \
+              --only-categories=performance \
+              --throttling-method=simulate \
+              --preset=desktop \
+              --quiet 2>/dev/null
+          done
+
+          # HTML report (last run)
+          npx lighthouse "http://localhost:9222/${SLUG}" \
+            --chrome-flags="--headless --no-sandbox --disable-gpu" \
+            --chrome-path="${CHROMIUM_PATH}" \
+            --output=html \
+            --output-path="lighthouse-reports/report" \
+            --only-categories=performance \
+            --throttling-method=simulate \
+            --preset=desktop \
+            --quiet 2>/dev/null
+
+          kill %1 2>/dev/null || true
+
+          # Compute median
+          python3 << 'PYEOF'
+          import json, statistics, os
+
+          metrics = {"perf": [], "fcp": [], "lcp": [], "tbt": [], "cls": [], "si": []}
+          for i in range(1, 4):
+              for path in [f"lighthouse-reports/run-{i}", f"lighthouse-reports/run-{i}.report.json"]:
+                  if os.path.isfile(path):
+                      break
+              with open(path) as f:
+                  r = json.load(f)
+              a = r["audits"]
+              metrics["perf"].append(r["categories"]["performance"]["score"] * 100)
+              metrics["fcp"].append(a["first-contentful-paint"]["numericValue"] / 1000)
+              metrics["lcp"].append(a["largest-contentful-paint"]["numericValue"] / 1000)
+              metrics["tbt"].append(a["total-blocking-time"]["numericValue"])
+              metrics["cls"].append(a["cumulative-layout-shift"]["numericValue"])
+              metrics["si"].append(a["speed-index"]["numericValue"] / 1000)
+
+          med = {k: statistics.median(v) for k, v in metrics.items()}
+
+          def indicator(val, threshold, higher_is_better=False):
+              if higher_is_better:
+                  return "🟢" if val >= threshold else ("🟠" if val >= threshold * 0.5 else "🔴")
+              return "🟢" if val <= threshold else ("🟠" if val <= threshold * 1.5 else "🔴")
+
+          rows = [
+              ("Performance Score", med["perf"], "",   90,  True),
+              ("First Contentful Paint", med["fcp"], "s",  1.8, False),
+              ("Largest Contentful Paint", med["lcp"], "s",  2.5, False),
+              ("Total Blocking Time", med["tbt"], "ms", 200, False),
+              ("Cumulative Layout Shift", med["cls"], "",   0.1, False),
+              ("Speed Index", med["si"], "s",  3.4, False),
+          ]
+
+          lines = [
+              "## Lighthouse Performance Audit",
+              "",
+              f"**Page:** `suckless-ogl-anatomie-frame.html` — median of 3 runs (desktop)",
+              "",
+              "| Metric | Value | Status | Target |",
+              "|--------|------:|:------:|:------:|",
+          ]
+          for name, val, unit, target, hb in rows:
+              s = indicator(val, target, hb)
+              op = "≥" if hb else "≤"
+              lines.append(f"| {name} | {val:.2f}{unit} | {s} | {op} {target}{unit} |")
+
+          body = "\n".join(lines)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(body + "\n")
+          with open("lighthouse-reports/pr-comment.md", "w") as f:
+              f.write(body + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"score={int(med['perf'])}\n")
+
+          print(body)
+          PYEOF
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: lighthouse-reports/
+          retention-days: 14
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('lighthouse-reports/pr-comment.md', 'utf8');
+            const body = report + `\n\n_${new Date().toISOString()} · [Full report](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})_`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Lighthouse Performance Audit')
+            );
+
+            const params = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            };
+
+            if (existing) {
+              await github.rest.issues.updateComment({ ...params, comment_id: existing.id });
+            } else {
+              await github.rest.issues.createComment({ ...params, issue_number: context.issue.number });
+            }
